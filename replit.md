@@ -103,7 +103,7 @@ static/
 - Added README.md with local setup instructions
 - **Streaming-style Agent Thinking UI**: JavaScript fetch-based animation with typing effects
   - New JSON API endpoint `/api/cases/{case_id}/run_concept_review`
-  - Steps appear one-by-one with fade-in animation (300ms delay)
+  - Steps appear one-by-one with fade-in animation (20ms delay)
   - Text types in character-by-character (15ms per character)
   - 800ms pause between steps for dramatic effect
   - CSS animations for blinking cursor during typing
