@@ -1,0 +1,239 @@
+🔧 Replit Prompt – Clean Instrument Names + Review/Approve Screen
+I already have the Concept Review Tool with:
+FastAPI + Jinja2 + SQLite + SQLAlchemy
+Email-first intake → Case creation
+Uploads for Sector Profile + Sustainability docs
+A Concept Review orchestrator with a “thinking” animation on the Case detail page
+Financial options currently named like "Option A - Sovereign Loan", "Option B - Sovereign-Guaranteed City Loan", "Option C - Blended Co-Financing"
+A Concept Note page that displays the generated note (with one or more options).
+I want 2 enhancements:
+Remove the literal "Option " prefix from financial instrument names (but still keep the A/B/C labeling where needed in the Concept Note).
+Add a dedicated “Review & Approve Concept Note” screen reached via a button after the agent finishes thinking:
+Concept Note is shown in full.
+All three financial instruments are shown as choices (radio buttons).
+The user can only click Approve after selecting one of the three instruments.
+The user can also Reject.
+Approve/Reject buttons must appear at the very bottom of the Concept Note.
+1. Clean up the FinancialOption names
+1.1 In the financial structuring agent
+In agents/financial_structuring_agent.py:
+Currently you probably set name fields like:
+"Option A - Sovereign Loan"
+"Option B - Sovereign-Guaranteed City Loan"
+"Option C - Blended Co-Financing"
+Change them to just the instrument name, with no "Option " prefix:
+"Sovereign Loan"
+"Sovereign-Guaranteed City Loan"
+"Blended Co-Financing"
+The Option A/B/C labelling should be handled by the Concept Note generator, not baked into the name.
+So for each created FinancialOption, ensure:
+option_a = {
+    "name": "Sovereign Loan",
+    "instrument_type": "sovereign_loan",
+    ...
+}
+option_b = {
+    "name": "Sovereign-Guaranteed City Loan",
+    "instrument_type": "sovereign_guaranteed_city_loan",
+    ...
+}
+option_c = {
+    "name": "Blended Co-Financing",
+    "instrument_type": "blended_co_financing",
+    ...
+}
+The labels “Option A/B/C” should only be added when rendering / composing text, never stored inside name.
+2. Concept Note: keep Option A/B/C as labels, but instrument names clean
+In agents/concept_note_agent.py, wherever you build the financing options section, do the following:
+Continue to assign Option labels (A, B, C) based on index:
+Use:
+label for the “Option” column (Option A, Option B, etc.),
+opt.name for the instrument text (which no longer includes "Option ").
+Example table row in markdown:
+| Option | Instrument                         | Tenor / Grace | All-in Rate | Total Score | Key Benefits | Key Trade-offs |
+|--------|------------------------------------|---------------|-------------|-------------|--------------|----------------|
+| A      | Sovereign Loan                     | 10y / 3y      | 2.5%        | 78.0        | ...          | ...            |
+| B      | Sovereign-Guaranteed City Loan     | 10y / 3y      | 2.6%        | 74.0        | ...          | ...            |
+| C      | Blended Co-Financing               | 10y / 2y      | 2.8%        | 70.0        | ...          | ...            |
+If you currently concatenate "Option X - " into the instrument cell, remove that. The instrument column should display just opt.name.
+3. New “Review & Approve Concept Note” screen
+3.1 Model: store chosen financial option
+In models.py, extend the Case model to store which financial option was chosen when approved:
+selected_financial_option_id = Column(Integer, ForeignKey("financial_options.id"), nullable=True)
+If the case is approved, this field should store the chosen FinancialOption.id.
+If the case is rejected, it can remain NULL.
+(Ensure the table name for financial options matches your actual model; adjust "financial_options" if needed.)
+3.2 Backend route for review/approval screen
+Add a new route in main.py:
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+from fastapi import status
+@app.get("/cases/{case_id}/review")
+async def review_concept_note(request: Request, case_id: int):
+    """
+    Show the full Concept Note along with the three financial options
+    as radio buttons, and Approve/Reject buttons at the bottom.
+    """
+In this handler:
+Load:
+the Case by case_id,
+the latest ConceptNote for that case,
+all FinancialOption rows for that case (sorted by total_score descending).
+Pass them to a new template review_concept_note.html.
+3.3 POST route to handle approve/reject
+Add another route:
+from fastapi import Form
+@app.post("/cases/{case_id}/review/decision")
+async def review_decision(
+    case_id: int,
+    decision: str = Form(...),  # "approve" or "reject"
+    selected_option_id: int | None = Form(None),
+):
+    """
+    Handle approval/rejection of the Concept Note.
+    Approval requires a selected financial option.
+    """
+Logic:
+Load the Case by case_id.
+If decision == "approve":
+If selected_option_id is None:
+Return an error or redirect back with a flash-like message (for now, simplest is to re-render /cases/{case_id}/review with an error message saying “Please select a financial instrument before approving.”).
+Else:
+Check that the selected option belongs to this case.
+Set:
+case.selected_financial_option_id = selected_option_id
+case.status = "APPROVED"
+If decision == "reject":
+Set case.status = "ARCHIVED" (or whatever reject status you’re using).
+selected_financial_option_id can stay NULL.
+Commit the changes.
+Redirect to the Case detail page (/cases/{case_id}).
+3.4 Template: review_concept_note.html
+Create templates/review_concept_note.html with structure like:
+{% extends "base.html" %}
+{% block content %}
+<h2>Review Concept Note – {{ case.name }}</h2>
+<div class="concept-note">
+  <!-- Render the Concept Note content (converted from markdown to HTML on the server) -->
+  {{ concept_note_html | safe }}
+</div>
+<hr />
+<h3>Select Financial Instrument</h3>
+<form action="/cases/{{ case.id }}/review/decision" method="post">
+  <div>
+    {% for opt in financial_options %}
+      {% set label = chr(65 + loop.index0) %} {# A = 65 #}
+      <div class="financial-option-choice">
+        <label>
+          <input type="radio" name="selected_option_id" value="{{ opt.id }}" />
+          <strong>Option {{ label }} – {{ opt.name }}</strong><br />
+          <small>
+            Tenor: {{ opt.tenor_years }} years, Grace: {{ opt.grace_period_years }} years,
+            All-in rate: {{ (opt.all_in_rate_bps / 100) | round(2) }}%, 
+            Score: {{ opt.total_score | round(1) }}
+          </small><br />
+          <em>Benefits:</em> {{ opt.pros }}<br />
+          <em>Trade-offs:</em> {{ opt.cons }}
+        </label>
+      </div>
+      <hr />
+    {% endfor %}
+  </div>
+  {% if error_message %}
+    <p style="color:red;">{{ error_message }}</p>
+  {% endif %}
+  <!-- Approve/Reject buttons at the very bottom -->
+  <div style="margin-top: 2rem;">
+    <button type="submit" name="decision" value="approve" id="approve-btn">Approve</button>
+    <button type="submit" name="decision" value="reject">Reject</button>
+  </div>
+</form>
+{% endblock %}
+Important:
+Approve/Reject buttons are at the very bottom of the page, after the full Concept Note and the list of options.
+We’ll enforce the “must select instrument before approve” both server-side and (optionally) client-side.
+3.5 Client-side guard: disable Approve until option is selected
+In review_concept_note.html, add a small <script> to help UX:
+<script>
+  const approveBtn = document.getElementById("approve-btn");
+  const radios = document.querySelectorAll('input[name="selected_option_id"]');
+  function updateApproveState() {
+    let anyChecked = false;
+    radios.forEach(r => {
+      if (r.checked) anyChecked = true;
+    });
+    approveBtn.disabled = !anyChecked;
+  }
+  radios.forEach(r => {
+    r.addEventListener("change", updateApproveState);
+  });
+  // initial state
+  updateApproveState();
+</script>
+This ensures Approve is disabled until a radio is selected.
+Server-side check remains necessary as a safety net.
+4. Hook “Proceed to review and approve Concept Note” after thinking
+On the Case detail page (case_detail.html), after the agent “thinking” animation completes, I want a button:
+“Proceed to review and approve Concept Note”
+that navigates to the new review page /cases/{case.id}/review.
+4.1 Add button in the template
+Under the Agent Thinking section:
+<div id="proceed-review-container" style="display:none; margin-top: 1rem;">
+  <a href="/cases/{{ case.id }}/review">
+    <button type="button">Proceed to review and approve Concept Note</button>
+  </a>
+</div>
+4.2 Show it after thinking finishes (JS)
+In the existing JS where you render thinking_steps sequentially, you know the total delay:
+If you used delayPerStep and a steps.length, you can compute when the last step animation is done.
+After the last step’s timeout, show the “proceed” container:
+const proceedContainer = document.getElementById("proceed-review-container");
+let delay = 0;
+const delayPerStep = 1200;
+steps.forEach((stepObj, index) => {
+  const stepDiv = document.createElement("div");
+  stepDiv.classList.add("thinking-step");
+  stepDiv.style.opacity = "0";
+  stepDiv.innerHTML = `
+    <h4>Step ${stepObj.step}: ${stepObj.title}</h4>
+    <p>${stepObj.description}</p>
+  `;
+  container.appendChild(stepDiv);
+  setTimeout(() => {
+    stepDiv.style.transition = "opacity 0.6s ease-in-out";
+    stepDiv.style.opacity = "1";
+  }, delay);
+  delay += delayPerStep;
+});
+// after all steps have animated, show the proceed button
+setTimeout(() => {
+  if (proceedContainer) {
+    proceedContainer.style.display = "block";
+  }
+}, delay + 500);  // small buffer after last step
+This gives you:
+LLM-like step-by-step thinking,
+then a clear next action: review and approve.
+5. Sanity checklist
+After these changes, I should be able to:
+Run the agent from Case detail, watch thinking steps appear one by one.
+See a “Proceed to review and approve Concept Note” button appear afterwards.
+Click that button → go to /cases/{case_id}/review.
+On that screen:
+See the full Concept Note (with financing section showing all three options).
+See three radio options:
+“Option A – Sovereign Loan”
+“Option B – Sovereign-Guaranteed City Loan”
+“Option C – Blended Co-Financing”
+(labels built in template, name field clean: just instrument names).
+Approve button disabled until I select an option.
+After selecting an option, Approve enabled.
+If I click Approve:
+Case status becomes APPROVED.
+selected_financial_option_id is stored on the Case.
+If I click Reject:
+Case status becomes ARCHIVED (or your reject status).
+Return to Case detail and see the updated status and (optionally) which instrument was chosen.
+Please implement exactly this behavior, keeping naming consistent and code tidy, and don’t break existing flows.
+for idx, opt in enumerate(options_sorted):
+    label = chr(ord("A") + idx)  # "A", "B", "C"

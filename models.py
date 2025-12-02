@@ -13,6 +13,7 @@ class Case(Base):
     sector = Column(String(100), nullable=False)
     status = Column(String(20), default="NEW")
     agent_thinking_log = Column(Text, nullable=True)
+    selected_financial_option_id = Column(Integer, ForeignKey("financial_options.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

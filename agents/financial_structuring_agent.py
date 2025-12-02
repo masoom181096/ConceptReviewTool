@@ -124,7 +124,7 @@ def _build_sovereign_loan(principal: float, peer_rates: dict, repayment: dict) -
     total_score = 0.6 * repayment_score + 0.4 * rate_score
     
     return {
-        "name": "Option A - Sovereign Loan",
+        "name": "Sovereign Loan",
         "instrument_type": "sovereign_loan",
         "currency": "USD",
         "tenor_years": tenor,
@@ -154,7 +154,7 @@ def _build_guaranteed_loan(principal: float, peer_rates: dict, repayment: dict) 
     total_score = 0.6 * repayment_score + 0.4 * rate_score
     
     return {
-        "name": "Option B - Sovereign-Guaranteed City Loan",
+        "name": "Sovereign-Guaranteed City Loan",
         "instrument_type": "guaranteed_subnational",
         "currency": "USD",
         "tenor_years": tenor,
@@ -189,7 +189,7 @@ def _build_blended_finance(principal: float, peer_rates: dict, repayment: dict) 
     total_score = 0.6 * repayment_score + 0.4 * rate_score
     
     return {
-        "name": "Option C - Blended Co-Financing",
+        "name": "Blended Co-Financing",
         "instrument_type": "co_financing",
         "currency": "USD",
         "tenor_years": tenor,
