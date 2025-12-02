@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}New Case - EBRD Concept Review Tool{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Create New Case</h2>
+</div>
+
+<div class="card">
+    <form action="/cases" method="post" class="form">
+        <div class="form-group">
+            <label for="name">Project Name</label>
+            <input type="text" id="name" name="name" required 
+                   placeholder="e.g., Kenya Nairobi E-Bus Fleet">
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="country">Country</label>
+                <select id="country" name="country" required>
+                    <option value="">Select Country</option>
+                    <option value="Kenya">Kenya</option>
+                    <option value="Nigeria">Nigeria</option>
+                    <option value="South Africa">South Africa</option>
+                    <option value="Egypt">Egypt</option>
+                    <option value="Morocco">Morocco</option>
+                    <option value="Ghana">Ghana</option>
+                    <option value="Ethiopia">Ethiopia</option>
+                    <option value="Tanzania">Tanzania</option>
+                    <option value="Uganda">Uganda</option>
+                    <option value="Poland">Poland</option>
+                    <option value="Romania">Romania</option>
+                    <option value="Turkey">Turkey</option>
+                    <option value="Ukraine">Ukraine</option>
+                    <option value="Kazakhstan">Kazakhstan</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Jordan">Jordan</option>
+                    <option value="Tunisia">Tunisia</option>
+                    <option value="Serbia">Serbia</option>
+                    <option value="Albania">Albania</option>
+                    <option value="Mongolia">Mongolia</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="sector">Sector</label>
+                <select id="sector" name="sector" required>
+                    <option value="">Select Sector</option>
+                    <option value="Urban Transport">Urban Transport</option>
+                    <option value="Energy">Energy</option>
+                    <option value="Infrastructure">Infrastructure</option>
+                    <option value="Water & Sanitation">Water & Sanitation</option>
+                    <option value="Municipal Services">Municipal Services</option>
+                    <option value="Financial Institutions">Financial Institutions</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Agribusiness">Agribusiness</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <a href="/cases" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Create Case</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

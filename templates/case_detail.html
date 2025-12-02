@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}{{ case.name }} - EBRD Concept Review Tool{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>{{ case.name }}</h2>
+        <p class="subtitle">{{ case.country }} | {{ case.sector }}</p>
+    </div>
+    <span class="status-badge status-{{ case.status|lower }} large">{{ case.status }}</span>
+</div>
+
+<div class="case-layout">
+    <div class="main-column">
+        <div class="card">
+            <h3>Input Documents</h3>
+            <p class="help-text">Paste or enter the raw text for each document type. Save inputs before running agents.</p>
+            
+            <form action="/cases/{{ case.id }}/update_docs" method="post" class="form">
+                <div class="form-group">
+                    <label for="need_assessment_text">Need Assessment (Email/MoM)</label>
+                    <textarea id="need_assessment_text" name="need_assessment_text" rows="4" 
+                              placeholder="Paste the need assessment email or minutes of meeting here...">{{ docs.need_assessment_text or '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sector_profile_text">Sector Profile Document</label>
+                    <textarea id="sector_profile_text" name="sector_profile_text" rows="4"
+                              placeholder="Paste government sector documentation, fleet data, etc...">{{ docs.sector_profile_text or '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="benchmark_text">International Benchmark Notes</label>
+                    <textarea id="benchmark_text" name="benchmark_text" rows="4"
+                              placeholder="Paste international benchmark data and comparisons...">{{ docs.benchmark_text or '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ops_fleet_text">Operations/Fleet Data (Baseline KPIs)</label>
+                    <textarea id="ops_fleet_text" name="ops_fleet_text" rows="4"
+                              placeholder="Paste operational data, fleet statistics, KPI baselines...">{{ docs.ops_fleet_text or '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="financial_data_text">Financial Data (Bloomberg/SAP Notes)</label>
+                    <textarea id="financial_data_text" name="financial_data_text" rows="4"
+                              placeholder="Paste financial data notes, loan requirements, amounts...">{{ docs.financial_data_text or '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sustainability_text">Project Sustainability Document</label>
+                    <textarea id="sustainability_text" name="sustainability_text" rows="4"
+                              placeholder="Paste sustainability/ESG documentation...">{{ docs.sustainability_text or '' }}</textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-secondary">Save Inputs</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h3>Agent Actions</h3>
+            <div class="action-buttons">
+                <form action="/cases/{{ case.id }}/run_agents" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-primary btn-large">
+                        Run Agents & Generate Concept Note
+                    </button>
+                </form>
+                
+                {% if concept_note %}
+                <a href="/cases/{{ case.id }}/concept_note" class="btn btn-secondary btn-large">
+                    View Concept Note
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if sector_profile %}
+        <div class="card">
+            <h3>Sector Profile</h3>
+            <table class="data-table compact">
+                <tr><th>Total Fleet</th><td>{{ sector_profile.fleet_total or 'N/A' }} buses</td></tr>
+                <tr><th>Diesel Buses</th><td>{{ sector_profile.fleet_diesel or 'N/A' }}</td></tr>
+                <tr><th>Hybrid Buses</th><td>{{ sector_profile.fleet_hybrid or 'N/A' }}</td></tr>
+                <tr><th>Electric Buses</th><td>{{ sector_profile.fleet_electric or 'N/A' }}</td></tr>
+                <tr><th>Depots</th><td>{{ sector_profile.depots or 'N/A' }}</td></tr>
+                <tr><th>Daily Ridership</th><td>{{ "{:,}".format(sector_profile.daily_ridership) if sector_profile.daily_ridership else 'N/A' }}</td></tr>
+                <tr><th>Annual OPEX</th><td>${{ "{:,.0f}".format(sector_profile.annual_opex_usd) if sector_profile.annual_opex_usd else 'N/A' }}</td></tr>
+                <tr><th>Annual CO2</th><td>{{ "{:,.0f}".format(sector_profile.annual_co2_tons) if sector_profile.annual_co2_tons else 'N/A' }} tons</td></tr>
+            </table>
+            {% if sector_profile.notes %}
+            <p class="notes"><strong>Notes:</strong> {{ sector_profile.notes }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if gap_items %}
+        <div class="card">
+            <h3>Gap Analysis</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Indicator</th>
+                        <th>{{ case.country }} Value</th>
+                        <th>Benchmark City</th>
+                        <th>Benchmark Value</th>
+                        <th>Gap</th>
+                        <th>Comparability</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gap in gap_items %}
+                    <tr>
+                        <td>{{ gap.indicator }}</td>
+                        <td>{{ gap.kenya_value }}</td>
+                        <td>{{ gap.benchmark_city }}</td>
+                        <td>{{ gap.benchmark_value }}</td>
+                        <td>{{ gap.gap_delta }}</td>
+                        <td><span class="comparability-{{ gap.comparability }}">{{ gap.comparability }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if kpis %}
+        <div class="card">
+            <h3>Baseline KPIs</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>KPI</th>
+                        <th>Baseline</th>
+                        <th>Unit</th>
+                        <th>Target</th>
+                        <th>Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kpi in kpis %}
+                    <tr>
+                        <td>{{ kpi.name }}</td>
+                        <td>{{ kpi.baseline_value }}</td>
+                        <td>{{ kpi.unit }}</td>
+                        <td>{{ kpi.target_value }}</td>
+                        <td><span class="category-badge">{{ kpi.category }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if financial_options %}
+        <div class="card">
+            <h3>Financial Options (Ranked by Total Score)</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Principal</th>
+                        <th>Tenor</th>
+                        <th>Rate (bps)</th>
+                        <th>Repayment Score</th>
+                        <th>Rate Score</th>
+                        <th>Total Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for opt in financial_options %}
+                    <tr class="{% if loop.first %}highlight-row{% endif %}">
+                        <td><strong>{{ opt.name }}</strong></td>
+                        <td>${{ "{:,.0f}".format(opt.principal_amount_usd / 1000000) }}M</td>
+                        <td>{{ opt.tenor_years }}y ({{ opt.grace_period_years }}y grace)</td>
+                        <td>{{ opt.all_in_rate_bps }}</td>
+                        <td class="score">{{ opt.repayment_score }}</td>
+                        <td class="score">{{ opt.rate_score }}</td>
+                        <td class="score total-score">{{ opt.total_score }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="help-text">Scoring: 60% Repayment Capacity + 40% Rate Competitiveness</p>
+        </div>
+        {% endif %}
+        
+        {% if sustainability %}
+        <div class="card">
+            <h3>Sustainability Profile</h3>
+            <table class="data-table compact">
+                <tr>
+                    <th>E&S Category</th>
+                    <td><span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span></td>
+                </tr>
+                <tr><th>CO2 Reduction</th><td>{{ "{:,.0f}".format(sustainability.co2_reduction_tons) if sustainability.co2_reduction_tons else 'N/A' }} tons/year</td></tr>
+                <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or 'N/A' }}</td></tr>
+            </table>
+            <div class="sustainability-details">
+                <p><strong>Accessibility:</strong> {{ sustainability.accessibility_notes or 'N/A' }}</p>
+                <p><strong>Policy Alignment:</strong> {{ sustainability.policy_alignment_notes or 'N/A' }}</p>
+                <p><strong>Key Risks:</strong> {{ sustainability.key_risks or 'N/A' }}</p>
+                <p><strong>Mitigations:</strong> {{ sustainability.mitigations or 'N/A' }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="side-column">
+        <div class="card">
+            <h3>Case Information</h3>
+            <dl class="info-list">
+                <dt>Case ID</dt>
+                <dd>{{ case.id }}</dd>
+                <dt>Status</dt>
+                <dd><span class="status-badge status-{{ case.status|lower }}">{{ case.status }}</span></dd>
+                <dt>Created</dt>
+                <dd>{{ case.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                <dt>Updated</dt>
+                <dd>{{ case.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+            </dl>
+        </div>
+        
+        {% if case.status == 'IN_REVIEW' %}
+        <div class="card">
+            <h3>OPSCOMM Decision</h3>
+            <form action="/cases/{{ case.id }}/decision" method="post" class="form">
+                <div class="form-group">
+                    <label class="radio-option">
+                        <input type="radio" name="decision" value="approve" required>
+                        <span class="radio-label approve">Approve - Proceed to Next Phase</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="decision" value="reject">
+                        <span class="radio-label reject">Reject - Archive Case</span>
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Submit Decision</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

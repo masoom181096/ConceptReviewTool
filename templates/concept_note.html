@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Concept Note - {{ case.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Concept Note</h2>
+        <p class="subtitle">{{ case.name }} - {{ case.country }}</p>
+    </div>
+    <a href="/cases/{{ case.id }}" class="btn btn-secondary">Back to Case</a>
+</div>
+
+<div class="concept-note-container">
+    <div class="concept-note-content">
+        {{ content_html | safe }}
+    </div>
+    
+    <div class="concept-note-meta">
+        <p><strong>Generated:</strong> {{ concept_note.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from database import Base
+
+
+class Case(Base):
+    __tablename__ = "cases"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    country = Column(String(100), nullable=False)
+    sector = Column(String(100), nullable=False)
+    status = Column(String(20), default="NEW")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    documents = relationship("CaseDocuments", back_populates="case", uselist=False, cascade="all, delete-orphan")
+    sector_profile = relationship("SectorProfile", back_populates="case", uselist=False, cascade="all, delete-orphan")
+    gap_analysis_items = relationship("GapAnalysisItem", back_populates="case", cascade="all, delete-orphan")
+    baseline_kpis = relationship("BaselineKPI", back_populates="case", cascade="all, delete-orphan")
+    financial_options = relationship("FinancialOption", back_populates="case", cascade="all, delete-orphan")
+    sustainability_profile = relationship("SustainabilityProfile", back_populates="case", uselist=False, cascade="all, delete-orphan")
+    concept_note = relationship("ConceptNote", back_populates="case", uselist=False, cascade="all, delete-orphan")
+
+
+class CaseDocuments(Base):
+    __tablename__ = "case_documents"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    need_assessment_text = Column(Text, default="")
+    sector_profile_text = Column(Text, default="")
+    benchmark_text = Column(Text, default="")
+    ops_fleet_text = Column(Text, default="")
+    financial_data_text = Column(Text, default="")
+    sustainability_text = Column(Text, default="")
+    
+    case = relationship("Case", back_populates="documents")
+
+
+class SectorProfile(Base):
+    __tablename__ = "sector_profiles"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    fleet_total = Column(Integer, nullable=True)
+    fleet_diesel = Column(Integer, nullable=True)
+    fleet_hybrid = Column(Integer, nullable=True)
+    fleet_electric = Column(Integer, nullable=True)
+    depots = Column(Integer, nullable=True)
+    daily_ridership = Column(Integer, nullable=True)
+    annual_opex_usd = Column(Float, nullable=True)
+    annual_co2_tons = Column(Float, nullable=True)
+    notes = Column(Text, nullable=True)
+    
+    case = relationship("Case", back_populates="sector_profile")
+
+
+class GapAnalysisItem(Base):
+    __tablename__ = "gap_analysis_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    indicator = Column(String(255), nullable=False)
+    kenya_value = Column(String(100), nullable=True)
+    benchmark_city = Column(String(100), nullable=True)
+    benchmark_value = Column(String(100), nullable=True)
+    gap_delta = Column(String(100), nullable=True)
+    comparability = Column(String(50), nullable=True)
+    comment = Column(Text, nullable=True)
+    
+    case = relationship("Case", back_populates="gap_analysis_items")
+
+
+class BaselineKPI(Base):
+    __tablename__ = "baseline_kpis"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    baseline_value = Column(String(100), nullable=True)
+    unit = Column(String(50), nullable=True)
+    target_value = Column(String(100), nullable=True)
+    category = Column(String(50), nullable=True)
+    notes = Column(Text, nullable=True)
+    
+    case = relationship("Case", back_populates="baseline_kpis")
+
+
+class FinancialOption(Base):
+    __tablename__ = "financial_options"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    instrument_type = Column(String(100), nullable=True)
+    currency = Column(String(10), default="USD")
+    tenor_years = Column(Integer, nullable=True)
+    grace_period_years = Column(Integer, nullable=True)
+    all_in_rate_bps = Column(Float, nullable=True)
+    principal_amount_usd = Column(Float, nullable=True)
+    repayment_score = Column(Float, nullable=True)
+    rate_score = Column(Float, nullable=True)
+    total_score = Column(Float, nullable=True)
+    pros = Column(Text, nullable=True)
+    cons = Column(Text, nullable=True)
+    
+    case = relationship("Case", back_populates="financial_options")
+
+
+class SustainabilityProfile(Base):
+    __tablename__ = "sustainability_profiles"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    category = Column(String(10), default="B")
+    co2_reduction_tons = Column(Float, nullable=True)
+    pm25_reduction = Column(String(100), nullable=True)
+    accessibility_notes = Column(Text, nullable=True)
+    policy_alignment_notes = Column(Text, nullable=True)
+    key_risks = Column(Text, nullable=True)
+    mitigations = Column(Text, nullable=True)
+    
+    case = relationship("Case", back_populates="sustainability_profile")
+
+
+class ConceptNote(Base):
+    __tablename__ = "concept_notes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
+    content_markdown = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    case = relationship("Case", back_populates="concept_note")
