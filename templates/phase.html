@@ -132,7 +132,7 @@
                 
                 <!-- Run Phase Action (stays in Agent Thinking tab) -->
                 {% set prev_phase_completed = (phase_no == 1) or (phase_no == 2 and case.phase1_completed) or (phase_no == 3 and case.phase2_completed) or (phase_no == 4 and case.phase3_completed) %}
-                {% if not phase_completed and prev_phase_completed %}
+                {% if prev_phase_completed %}
                 <div class="run-phase-action">
                     <button 
                         id="run-phase-btn" 
@@ -140,11 +140,16 @@
                         class="btn btn-primary btn-large"
                         data-case-id="{{ case.id }}"
                         data-phase="{{ phase_no }}"
+                        data-auto-run="{{ 'true' if auto_run_phase else 'false' }}"
                     >
-                        Run Phase {{ phase_no }}
+                        {% if phase_completed %}
+                            Re-run Phase {{ phase_no }}
+                        {% else %}
+                            Run Phase {{ phase_no }}
+                        {% endif %}
                     </button>
                 </div>
-                {% elif not prev_phase_completed %}
+                {% else %}
                 <div class="run-phase-action">
                     <span class="btn btn-disabled">Complete Phase {{ phase_no - 1 }} first</span>
                 </div>
@@ -492,6 +497,8 @@
     
     const caseId = runBtn.getAttribute("data-case-id");
     const phaseNo = runBtn.getAttribute("data-phase");
+    const autoRun = runBtn.getAttribute("data-auto-run") === "true";
+    const originalButtonText = runBtn.textContent.trim();
     
     function typeTextWords(element, fullText, wordDelay) {
         return new Promise((resolve) => {
@@ -516,7 +523,7 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     
-    runBtn.addEventListener("click", async () => {
+    async function runPhase() {
         let thinkingCard = document.querySelector('.thinking-timeline')?.closest('.card');
         let stepsContainer = document.getElementById('thinking-timeline');
         
@@ -554,7 +561,7 @@
                 statusEl.textContent = "Error: " + (data.detail || "Phase execution failed");
                 statusEl.className = "thinking-status thinking-status-error";
                 runBtn.disabled = false;
-                runBtn.textContent = "Run Phase " + phaseNo;
+                runBtn.textContent = originalButtonText;
                 showToast("Phase execution failed", "error");
                 return;
             }
@@ -563,7 +570,7 @@
             if (!steps.length) {
                 statusEl.textContent = "Phase completed, but no thinking steps were returned.";
                 runBtn.disabled = false;
-                runBtn.textContent = "Run Phase " + phaseNo;
+                runBtn.textContent = "Re-run Phase " + phaseNo;
                 return;
             }
             
@@ -640,10 +647,23 @@
             statusEl.textContent = "Unexpected error. Please try again.";
             statusEl.className = "thinking-status thinking-status-error";
             runBtn.disabled = false;
-            runBtn.textContent = "Run Phase " + phaseNo;
+            runBtn.textContent = originalButtonText;
             showToast("Unexpected error occurred", "error");
         }
+    }
+    
+    // Manual run/re-run via button click
+    runBtn.addEventListener("click", () => {
+        runPhase();
     });
+    
+    // Auto-run on page load if phase not completed
+    if (autoRun) {
+        // Small delay so the UI renders before we start
+        setTimeout(() => {
+            runPhase();
+        }, 500);
+    }
 })();
 </script>
 {% endblock %}

@@ -1,0 +1,230 @@
+🔧 Replit Prompt – Auto-Run Current Phase on Page Load + Button for Re-Run
+You are working on my FastAPI + Jinja2 app: EBRD Concept Review Tool.
+I already have:
+Phase pages: /cases/{case_id}/phases/{phase_no} for phase_no = 1..4.
+Phase templates (e.g. phase1.html, phase2.html, etc.) with:
+A Run Phase button wired to /api/cases/{case_id}/phases/{phase_no}/run via JS.
+Tabs: “Agent Thinking” and “Outputs”.
+A phase footer outside the tabs with “Proceed to Phase X” and “Back to Phase Y”.
+Backend flags on Case: phase1_completed, phase2_completed, phase3_completed, phase4_completed.
+An API endpoint:
+POST /api/cases/{case_id}/phases/{phase_no}/run
+which runs the phase, persists outputs, and returns JSON:
+{ "status": "ok", "thinking_steps": [...] }.
+Frontend JS that:
+calls this API when Run Phase is clicked,
+shows “Agent Thinking” by revealing thinking_steps one by one,
+and streams each step’s text using a typewriter effect (we already implemented that).
+I want this enhancement:
+When I land on a phase page (GET /cases/{case_id}/phases/{phase_no}), if that phase is not completed yet, the system should auto-run that phase once:
+Exactly as if the user clicked the Run Phase button.
+Using the existing /api/.../run endpoint and streaming UI (no new backend logic).
+The Run Phase button should remain, but if the phase has already run, it should act as “Re-run Phase X”.
+Auto-run must be per phase only:
+When Phase 1 completes, the system must not automatically start Phase 2.
+Phase 2 only runs when the user clicks “Proceed to Phase 2” (in the footer), which navigates to /cases/{case_id}/phases/2, and that page then auto-runs Phase 2 if it’s not yet completed.
+The behaviour should be consistent for Phases 1–4.
+Please implement the following changes.
+1. Backend: pass an auto_run_phase flag to the template
+In the view that serves a phase page, e.g.:
+@app.get("/cases/{case_id}/phases/{phase_no}")
+async def view_phase(request: Request, case_id: int, phase_no: int):
+    # existing code to load case, outputs, etc.
+Update it to compute whether the current phase is completed and whether it should auto-run:
+@app.get("/cases/{case_id}/phases/{phase_no}")
+async def view_phase(request: Request, case_id: int, phase_no: int):
+    case = db_session.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    # Determine completion status for this phase
+    if phase_no == 1:
+        current_phase_completed = bool(case.phase1_completed)
+        template_name = "phase1.html"
+    elif phase_no == 2:
+        current_phase_completed = bool(case.phase2_completed)
+        template_name = "phase2.html"
+    elif phase_no == 3:
+        current_phase_completed = bool(case.phase3_completed)
+        template_name = "phase3.html"
+    elif phase_no == 4:
+        current_phase_completed = bool(case.phase4_completed)
+        template_name = "phase4.html"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid phase number")
+    # Auto-run logic:
+    # - If phase is NOT completed -> auto_run_phase = True
+    # - If phase already completed  -> auto_run_phase = False (user can still re-run manually)
+    auto_run_phase = not current_phase_completed
+    # Load any existing outputs / thinking logs as you already do...
+    context = {
+        "request": request,
+        "case": case,
+        "current_phase": phase_no,
+        "current_phase_completed": current_phase_completed,
+        "auto_run_phase": auto_run_phase,
+        # include existing context: sector_profile, kpis, financial_options, etc.
+    }
+    return templates.TemplateResponse(template_name, context)
+This gives each phase template a boolean auto_run_phase that the JS can read.
+2. Template: mark the Run button with auto-run metadata
+In each phase template, your Run button currently looks roughly like:
+<button
+  id="run-phase-btn"
+  type="button"
+  data-case-id="{{ case.id }}"
+  data-phase="{{ current_phase }}"
+>
+  Run Phase {{ current_phase }}
+</button>
+Change it to include:
+A data-auto-run attribute set from the backend flag, and
+A dynamic label: “Run” vs “Re-run” depending on completion.
+Example (use this pattern for all four phase templates):
+<button
+  id="run-phase-btn"
+  type="button"
+  data-case-id="{{ case.id }}"
+  data-phase="{{ current_phase }}"
+  data-auto-run="{{ 'true' if auto_run_phase else 'false' }}"
+>
+  {% if current_phase_completed %}
+    Re-run Phase {{ current_phase }}
+  {% else %}
+    Run Phase {{ current_phase }}
+  {% endif %}
+</button>
+The footer’s Proceed to Phase X button stays as you previously defined it (outside the tabs), just make sure it still links to /cases/{{ case.id }}/phases/{{ current_phase + 1 }}.
+3. JS: reuse the same handler for manual and auto-run
+You already have JS that:
+Listens for click on #run-phase-btn,
+Calls /api/cases/{case_id}/phases/{phase_no}/run,
+Streams thinking_steps.
+Refactor it so the logic is wrapped in a function that can be called both:
+from the click handler, and
+automatically on page load if data-auto-run === "true".
+Here’s the structure to implement (or adapt your existing script to this):
+<script>
+  (function() {
+    const runBtn = document.getElementById("run-phase-btn");
+    if (!runBtn) return;
+    const caseId = runBtn.getAttribute("data-case-id");
+    const phaseNo = runBtn.getAttribute("data-phase");
+    const autoRun = runBtn.getAttribute("data-auto-run") === "true";
+    const statusEl = document.getElementById("thinking-status");
+    const stepsContainer = document.getElementById("thinking-steps");
+    // Helper to type out text (you already have something like this)
+    function typeText(element, fullText, charDelay) {
+      element.textContent = "";
+      element.style.whiteSpace = "pre-line";
+      let i = 0;
+      function tick() {
+        if (i <= fullText.length) {
+          element.textContent = fullText.slice(0, i);
+          i++;
+          setTimeout(tick, charDelay);
+        }
+      }
+      tick();
+    }
+    async function runPhase() {
+      // reset UI
+      if (statusEl) statusEl.textContent = "Starting Phase " + phaseNo + "...";
+      if (stepsContainer) stepsContainer.innerHTML = "";
+      runBtn.disabled = true;
+      try {
+        const response = await fetch(`/api/cases/${caseId}/phases/${phaseNo}/run`, {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        });
+        if (!response.ok) {
+          if (statusEl) statusEl.textContent = "Agent error. Please try again.";
+          runBtn.disabled = false;
+          return;
+        }
+        const data = await response.json();
+        const steps = data.thinking_steps || [];
+        if (!steps.length) {
+          if (statusEl) statusEl.textContent = "Phase completed, but no thinking steps were returned.";
+          runBtn.disabled = false;
+          return;
+        }
+        if (statusEl) statusEl.textContent = "Phase is running...";
+        let delay = 0;
+        const delayPerStep = 1000;
+        const charDelay = 20;
+        steps.forEach((stepObj, idx) => {
+          const stepDiv = document.createElement("div");
+          stepDiv.classList.add("thinking-step");
+          stepDiv.style.opacity = "0";
+          stepDiv.style.transform = "translateY(10px)";
+          const headerDiv = document.createElement("div");
+          headerDiv.classList.add("thinking-step-header");
+          headerDiv.innerHTML = `
+            <span class="thinking-step-number">Step ${stepObj.step || (idx + 1)}</span>
+            <span class="thinking-step-title">${stepObj.title || ""}</span>
+          `;
+          const bodyDiv = document.createElement("div");
+          bodyDiv.classList.add("thinking-step-body");
+          stepDiv.appendChild(headerDiv);
+          stepDiv.appendChild(bodyDiv);
+          stepsContainer.appendChild(stepDiv);
+          const fullText = stepObj.description || "";
+          setTimeout(() => {
+            // fade/slide-in
+            stepDiv.style.transition = "opacity 0.5s ease-in-out, transform 0.5s ease-in-out";
+            stepDiv.style.opacity = "1";
+            stepDiv.style.transform = "translateY(0)";
+            // then type the body text
+            typeText(bodyDiv, fullText, charDelay);
+          }, delay);
+          delay += delayPerStep;
+        });
+        setTimeout(() => {
+          if (statusEl) {
+            statusEl.textContent = "Phase " + phaseNo + " completed. Review the outputs, then proceed when ready.";
+          }
+          runBtn.disabled = false;
+          // Optionally reload only outputs via a light refresh if you added separate JSON
+          // For now, user can manually refresh or navigate; data is already saved server-side.
+        }, delay + 300);
+      } catch (err) {
+        console.error(err);
+        if (statusEl) statusEl.textContent = "Unexpected error. Please try again.";
+        runBtn.disabled = false;
+      }
+    }
+    // Manual run/re-run via button click
+    runBtn.addEventListener("click", () => {
+      runPhase();
+    });
+    // 🔥 Auto-run on page load if phase not completed
+    if (autoRun) {
+      // small delay so the UI renders before we start
+      setTimeout(() => {
+        runPhase();
+      }, 500);
+    }
+  })();
+</script>
+Important behaviours:
+If auto_run_phase is True (phase not completed), data-auto-run="true" → runPhase() is called once on load.
+If phase already completed, auto_run_phase = False → the page loads without auto-run, and the button acts as Re-run.
+When you click Proceed to Phase 2 in the footer:
+Browser navigates to /cases/{id}/phases/2.
+Backend sees case.phase2_completed == False → sets auto_run_phase = True.
+Phase 2 page loads and auto-runs Phase 2 on arrival.
+No auto-chaining beyond that: Phase 3 only auto-runs when you navigate to it, and so on.
+4. Double-check footer behaviour (no changes, just validation)
+You don’t need to change the footer logic, but conceptually:
+On Phase 1 page, after auto-run completes, user reviews Thinking + Outputs.
+When they click Proceed to Phase 2, they’re taken to Phase 2, which auto-runs if not completed.
+And so on for Phases 3 and 4.
+The per-phase buttons (now labelled “Run Phase X” or “Re-run Phase X”) remain useful:
+To re-run a phase after updating input docs,
+Or to demonstrate a single phase in isolation during the demo.
+This gives you exactly the behaviour you asked for:
+Auto-run of the current phase on landing, but
+Explicit human control over progressing to the next phase, and
+Buttons that act as re-run controls rather than the primary way to kick off the first run.

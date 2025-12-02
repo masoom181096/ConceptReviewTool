@@ -138,6 +138,13 @@ static/
   - `white-space: pre-line` for proper newline handling without HTML injection
   - Status messages show running/complete/error states
   - Page auto-refreshes after streaming completes to show phase results
+- **Auto-Run Phase on Page Load**:
+  - When landing on a phase page that's not completed, phase auto-runs immediately
+  - Uses existing API endpoint and streaming UI (no new backend logic)
+  - Button shows "Run Phase X" for incomplete phases, "Re-run Phase X" for completed
+  - Auto-run triggered by `data-auto-run="true"` attribute set from backend
+  - No auto-chaining: Phase 2 only auto-runs when user clicks "Proceed to Phase 2"
+  - Explicit human control over phase progression maintained
 - **Enhanced Concept Note with Trade-offs Table**:
   - Summary comparison table with all 3 financial options
   - Decision Framework section explaining trade-offs narratively

@@ -585,6 +585,18 @@ async def view_phase(
         from services.stub_international_benchmarks import get_market_rates
         market_data = get_market_rates()
     
+    # Determine completion status for this phase
+    phase_completed_flags = {
+        1: case.phase1_completed,
+        2: case.phase2_completed,
+        3: case.phase3_completed,
+        4: case.phase4_completed,
+    }
+    current_phase_completed = bool(phase_completed_flags.get(phase_no, False))
+    
+    # Auto-run logic: if phase not completed -> auto_run_phase = True
+    auto_run_phase = not current_phase_completed
+    
     return templates.TemplateResponse(
         "phase.html",
         {
@@ -602,6 +614,8 @@ async def view_phase(
             "concept_note_html": concept_note_html,
             "thinking_steps": thinking_steps,
             "market_data": market_data,
+            "phase_completed": current_phase_completed,
+            "auto_run_phase": auto_run_phase,
         }
     )
 
