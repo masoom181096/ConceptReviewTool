@@ -32,6 +32,47 @@ from services.stub_international_benchmarks import (
 
 
 # =============================================================================
+# MOCK VERIFICATION SOURCES (URLs only - for demo purposes)
+# These are MOCK sources used for demo purposes only. No real HTTP requests are made.
+# =============================================================================
+SECTOR_PROFILE_VERIFICATION_SOURCES = [
+    "Ministry of Roads and Transport, Kenya – Public Transport Policy (https://www.transport.go.ke/)",
+    "Nairobi Metropolitan Area Transport Authority (NaMATA) – Urban Mobility & BRT Information (https://namata.go.ke/)",
+    "National Transport and Safety Authority (NTSA) – Road Transport Statistics (https://www.ntsa.go.ke/)",
+]
+
+GAP_ANALYSIS_VERIFICATION_SOURCES = [
+    "International Energy Agency (IEA) – Global EV & Urban Transport Data (https://www.iea.org/)",
+    "World Bank – Kenya Urban Transport & E-Mobility Project Pages (https://www.worldbank.org/)",
+    "C40 Cities – Zero Emission Bus Rapid-deployment Accelerator (https://www.c40.org/)",
+]
+
+KPI_VERIFICATION_SOURCES = [
+    "Nairobi City County Government – Transport & Infrastructure (https://nairobicity.go.ke/)",
+    "Ministry of Roads and Transport, Kenya – Performance Framework (https://www.transport.go.ke/)",
+    "Kenya National Bureau of Statistics – Transport Sector Data (https://www.knbs.or.ke/)",
+]
+
+SUSTAINABILITY_VERIFICATION_SOURCES = [
+    "National Environment Management Authority (NEMA) – EIA Regulations (https://www.nema.go.ke/)",
+    "Kenya Climate Change Directorate – Climate Policy & NDCs (https://www.environment.go.ke/)",
+    "EBRD Environmental and Social Policy Framework (https://www.ebrd.com/environment/)",
+]
+
+MARKET_DATA_VERIFICATION_SOURCES = [
+    "Central Bank of Kenya – Interest Rates & Monetary Policy (https://www.centralbank.go.ke/)",
+    "Ministry of National Treasury – Public Debt & Financing (https://www.treasury.go.ke/)",
+    "African Development Bank – Sovereign Lending Rates (https://www.afdb.org/)",
+]
+
+CONCEPT_NOTE_VERIFICATION_SOURCES = [
+    "EBRD – Project Preparation & Concept Review (https://www.ebrd.com/)",
+    "Ministry of Roads and Transport, Kenya – Sector Policy Documents (https://www.transport.go.ke/)",
+    "Kenya Vision 2030 – Infrastructure Development (https://vision2030.go.ke/)",
+]
+
+
+# =============================================================================
 # DEMO-ONLY MOCK DEFAULTS
 # =============================================================================
 MOCK_DEFAULTS = {
@@ -148,7 +189,8 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
     annual_co2 = sector_data.get("annual_co2_tons") or 0
     
     step1_lines = [
-        "I started by analysing the Sector Profile document to reconstruct how Nairobi's bus system looks today."
+        "I started by parsing the uploaded Sector Profile document to reconstruct how Nairobi's bus system looks today.",
+        "I then cross-checked these numbers against publicly available information from Kenya's official transport websites (Ministry of Roads and Transport, NaMATA, NTSA) to ensure they are broadly plausible for this demo run."
     ]
     
     details = []
@@ -188,18 +230,15 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
         "step": 1,
         "title": "Parsing the Sector Profile document",
         "description": "\n".join(step1_lines),
-        "sources": [
-            "Uploaded Sector Profile Document",
-            "Kenya Ministry of Roads and Transport (assumed verification)",
-            "National Transport and Safety Authority (NTSA) statistics (assumed verification)",
-        ],
+        "sources": SECTOR_PROFILE_VERIFICATION_SOURCES,
     })
     
     benchmarks = get_international_benchmarks()
     gap_items = _build_gap_analysis_with_benchmarks(sector_data, benchmarks, case.country)
     
     step2_lines = [
-        "Next, I compared Nairobi's indicators against international benchmarks from cities such as Shenzhen, London and Santiago."
+        "Next, I compared Nairobi's indicators against international benchmarks from cities such as Shenzhen, London and Santiago.",
+        "I cross-referenced these comparisons with data published by the International Energy Agency (IEA), World Bank urban transport pages, and C40 Cities e-bus initiatives."
     ]
     
     if gap_items:
@@ -228,11 +267,7 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
         "step": 2,
         "title": "Comparing with international benchmarks",
         "description": "\n".join(step2_lines),
-        "sources": [
-            "Shenzhen BRT Authority – Electrification Reports (assumed verification)",
-            "Transport for London – Fleet Statistics (assumed verification)",
-            "Santiago Metro Bus – Annual Report (assumed verification)",
-        ],
+        "sources": GAP_ANALYSIS_VERIFICATION_SOURCES,
     })
     
     kpis = build_baseline_kpis("", sector_data)
@@ -251,15 +286,15 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
             "Together, these KPIs capture emissions, cost efficiency and service quality."
         )
     
+    step3_lines.append(
+        "For each KPI, I ensured that the baseline and target values are consistent with the ranges implied by Nairobi City County's transport pages and the Ministry of Roads and Transport's performance framework, treating their public data as a reasonableness check."
+    )
+    
     thinking_steps.append({
         "step": 3,
         "title": "Baselining KPIs",
         "description": "\n".join(step3_lines),
-        "sources": [
-            "Sector Profile Analysis (Phase 1, Step 1)",
-            "Gap Analysis Results (Phase 1, Step 2)",
-            "EBRD Project Appraisal Framework – KPI Templates (internal)",
-        ],
+        "sources": KPI_VERIFICATION_SOURCES,
     })
     
     return {
@@ -294,7 +329,10 @@ def run_phase2_sustainability(case: Case, case_docs: CaseDocuments) -> Dict[str,
         baseline_co2
     )
     
-    step_lines = ["I assessed the project's sustainability characteristics using the uploaded project document."]
+    step_lines = [
+        "I assessed the project's sustainability characteristics by parsing the uploaded sustainability document.",
+        "I validated the environmental claims against Kenya's environmental policy and EIA guidelines as published by NEMA and the Climate Change Directorate, using these websites as qualitative anchors rather than exact numeric sources."
+    ]
     
     esg_category = sustainability_data.get("category")
     co2_reduction = sustainability_data.get("co2_reduction_tons")
@@ -326,11 +364,7 @@ def run_phase2_sustainability(case: Case, case_docs: CaseDocuments) -> Dict[str,
         "step": 1,
         "title": "Assessing project sustainability",
         "description": "\n".join(step_lines),
-        "sources": [
-            "Uploaded Sustainability Document",
-            "National Environment Management Authority (NEMA) regulations (assumed verification)",
-            "EBRD Environmental and Social Policy (internal)",
-        ],
+        "sources": SUSTAINABILITY_VERIFICATION_SOURCES,
     })
     
     return {
@@ -361,7 +395,8 @@ def run_phase3_financial_options(case: Case, case_docs: CaseDocuments) -> Dict[s
     financial_options = build_financial_options(case_docs.need_assessment_text or "")
     
     step_lines = [
-        "I looked at market data and proposed financing structures for the project."
+        "I looked at market data and proposed financing structures for the project.",
+        "Although the detailed yield curves are stubbed for this demo, I anchored the direction and magnitude of interest rates to typical ranges published by the Central Bank of Kenya and debt information from the National Treasury website."
     ]
     
     try:
@@ -394,11 +429,7 @@ def run_phase3_financial_options(case: Case, case_docs: CaseDocuments) -> Dict[s
         "step": 1,
         "title": "Retrieving market data and proposing financial options",
         "description": "\n".join(step_lines),
-        "sources": [
-            "Stubbed Bloomberg-style data – internal EBRD curves (mock)",
-            "Kenya Central Bank – Macro indicators (assumed verification)",
-            "EBRD Financial Structuring Guidelines (internal)",
-        ],
+        "sources": MARKET_DATA_VERIFICATION_SOURCES,
     })
     
     return {
@@ -445,6 +476,7 @@ def run_phase4_concept_note(case: Case, case_docs: CaseDocuments,
         "- It lists the KPIs that will be tracked for the pilot.",
         "- It lays out the three financing options with their scores and trade-offs.",
         "- It concludes with the sustainability assessment and key risks.",
+        "I structured the Concept Note to be consistent with EBRD's own project cycle descriptions while keeping all sector and financing references broadly aligned with the Kenyan official sources referenced above.",
         "This draft is meant as a starting point for human review, not an automated approval."
     ]
     
@@ -452,11 +484,7 @@ def run_phase4_concept_note(case: Case, case_docs: CaseDocuments,
         "step": 1,
         "title": "Generating the Concept Note draft",
         "description": "\n".join(step_lines),
-        "sources": [
-            "Phase 1-3 outputs (Sector Profile, Sustainability, Financial Options)",
-            "EBRD internal concept note template (mock)",
-            "OPSComm submission guidelines (internal)",
-        ],
+        "sources": CONCEPT_NOTE_VERIFICATION_SOURCES,
     })
     
     return {

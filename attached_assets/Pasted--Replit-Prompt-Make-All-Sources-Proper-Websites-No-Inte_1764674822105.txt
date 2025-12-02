@@ -1,0 +1,178 @@
+🔧 Replit Prompt – Make All Sources Proper Websites (No Internal Docs)
+You are working on my FastAPI + Jinja2 app EBRD Concept Review Tool.
+I already have:
+4 phases with interleaved Agent Thinking → Output table/card for each step.
+Each thinking step is rendered as a collapsible card with streaming text.
+Under each step card and under each output block, I currently show a “Sources” line that often includes internal documents (uploaded .docx files).
+I want to change the source model so that:
+Every step’s sources are shown as websites / specific webpages, not internal documents.
+The reasoning text explicitly says:
+“I parsed the uploaded documents, then cross-checked against Kenya official websites”
+even though, for now, this is only simulated.
+Under each output table/card, the small “Sources:” line should reference the same external websites, not .docx filenames.
+No more “Email and MoM…(uploaded)” or “Sector Profile document (uploaded)” in the sources lists.
+For now, this is all stubbed: there are no real HTTP calls to these sites.
+We just need deterministic, realistic-looking URLs and site labels.
+Please implement the following changes.
+1. Define canonical mock “verification sources” (URLs only)
+In agents/concept_review_orchestrator.py (or a small config module it imports), define a set of constant source lists that are all websites/web pages.
+Example (adapt names if you like, but keep the pattern: Kenyan official sites + 1–2 international refs):
+# These are MOCK sources used for demo purposes only. No real HTTP requests are made.
+SECTOR_PROFILE_VERIFICATION_SOURCES = [
+    "Ministry of Roads and Transport, Kenya – Public Transport Policy (https://www.transport.go.ke/)",
+    "Nairobi Metropolitan Area Transport Authority (NaMATA) – Urban Mobility & BRT Information (https://namata.go.ke/)",
+    "National Transport and Safety Authority (NTSA) – Road Transport Statistics (https://www.ntsa.go.ke/)",
+]
+GAP_ANALYSIS_VERIFICATION_SOURCES = [
+    "International Energy Agency (IEA) – Global EV & Urban Transport Data (https://www.iea.org/)",
+    "World Bank – Kenya Urban Transport / e-mobility Project pages (https://www.worldbank.org/)",
+]
+KPI_VERIFICATION_SOURCES = [
+    "Nairobi City County Government – Transport & Mobility (https://nairobicity.go.ke/)",
+    "Ministry of Roads and Transport, Kenya – Performance Framework (https://www.transport.go.ke/)",
+]
+SUSTAINABILITY_VERIFICATION_SOURCES = [
+    "National Environment Management Authority (NEMA) – Environmental Impact Assessment Regulations (https://www.nema.go.ke/)",
+    "Kenya Climate Change Directorate – Climate Policy & NDCs (https://www.environment.go.ke/)",
+]
+MARKET_DATA_VERIFICATION_SOURCES = [
+    "Central Bank of Kenya – Interest Rates & Monetary Policy (https://www.centralbank.go.ke/)",
+    "Ministry of National Treasury and Economic Planning – Debt & Financing (https://www.treasury.go.ke/)",
+]
+CONCEPT_NOTE_VERIFICATION_SOURCES = [
+    "EBRD – Concept Review & Project Cycle (https://www.ebrd.com/)",
+    "Ministry of Roads and Transport, Kenya – Sector Policy Documents (https://www.transport.go.ke/)",
+]
+These are just constants. We are not actually calling them; we’re just showing them to the user as “assumed verification sources”.
+2. Update thinking_steps to only use these website sources
+In each run_phaseX... function where you build thinking_steps, remove internal-doc references from the sources list and instead use the constants.
+Phase 1 example
+Previously you may have done:
+step1_sources = [
+    "Kenya Gov Sample Document – Sector Profile (uploaded)",
+    "Kenya Ministry of Roads and Transport – Official website (assumed verification)",
+]
+Replace with:
+step1_sources = SECTOR_PROFILE_VERIFICATION_SOURCES
+Same for other steps:
+thinking_steps.append({
+    "step": 1,
+    "title": "Parsing the Sector Profile document",
+    "description": "\n".join(step1_lines),
+    "sources": SECTOR_PROFILE_VERIFICATION_SOURCES,
+})
+thinking_steps.append({
+    "step": 2,
+    "title": "Comparing with international benchmarks",
+    "description": "\n".join(step2_lines),
+    "sources": GAP_ANALYSIS_VERIFICATION_SOURCES,
+})
+thinking_steps.append({
+    "step": 3,
+    "title": "Baselining KPIs",
+    "description": "\n".join(step3_lines),
+    "sources": KPI_VERIFICATION_SOURCES,
+})
+Phase 2
+thinking_steps.append({
+    "step": 1,
+    "title": "Assessing project sustainability",
+    "description": "\n".join(step_lines),
+    "sources": SUSTAINABILITY_VERIFICATION_SOURCES,
+})
+Phase 3
+thinking_steps.append({
+    "step": 1,
+    "title": "Retrieving market data and structuring financing options",
+    "description": "\n".join(step_lines),
+    "sources": MARKET_DATA_VERIFICATION_SOURCES,
+})
+Phase 4
+thinking_steps.append({
+    "step": 1,
+    "title": "Generating the Concept Note draft",
+    "description": "\n".join(step_lines),
+    "sources": CONCEPT_NOTE_VERIFICATION_SOURCES,
+})
+3. Make the reasoning text explicitly mention verification against these sites
+When you build your stepX_lines (the description paragraphs), make sure each relevant step explicitly acknowledges the two-stage logic:
+Parse uploaded docs.
+“Cross-check against Kenya official websites (assumed, for demo).”
+Example for Phase 1 – Step 1 description:
+step1_lines = [
+    "I started by parsing the uploaded Sector Profile document to reconstruct how Nairobi’s bus system looks today.",
+    "I then cross-checked these numbers against publicly available information from Kenya’s official transport websites (e.g., Ministry of Roads and Transport, NaMATA, NTSA) to ensure they are broadly plausible for this demo run.",
+    # … existing bullet logic about fleet, ridership, etc.
+]
+For KPIs:
+step3_lines.append(
+    "For each KPI, I ensured that the baseline and target values are consistent with the ranges implied by Nairobi City County’s transport pages and the Ministry of Roads and Transport’s performance framework, treating their public data as a reasonableness check."
+)
+For sustainability:
+step_lines.append(
+    "I validated the environmental claims against Kenya’s environmental policy and EIA guidelines as published by NEMA and the Climate Change Directorate, using these websites as qualitative anchors rather than exact numeric sources."
+)
+For market data:
+step_lines.append(
+    "Although the detailed yield curves are stubbed for this demo, I anchored the direction and magnitude of interest rates to typical ranges published by the Central Bank of Kenya and debt information from the National Treasury website."
+)
+For the Concept Note:
+step_lines.append(
+    "Finally, I structured the Concept Note to be consistent with EBRD’s own project cycle descriptions while keeping all sector and financing references broadly aligned with the Kenyan official sources referenced above."
+)
+Again: all simulated; just make the narrative honest about that in comments, but from the user’s perspective they see credible public sources.
+4. Update the frontend’s “Sources” rendering (step cards) – still URLs only
+You already have in your JS:
+const sourcesDiv = document.createElement("div");
+sourcesDiv.classList.add("thinking-step-sources");
+const sources = stepObj.sources || [];
+if (Array.isArray(sources) && sources.length > 0) {
+  const label = document.createElement("span");
+  label.textContent = "Sources (verification): ";
+  sourcesDiv.appendChild(label);
+  const listSpan = document.createElement("span");
+  listSpan.textContent = sources.join("; ");
+  sourcesDiv.appendChild(listSpan);
+}
+Leave that, but now it will only show website-based entries from the constants, no doc names.
+If any code still appends “(uploaded)” to sources, remove that completely.
+5. Update “Sources” under each output table/card to match the website lists
+In the phase view functions where you populate context, replace any list that still mentions documents.
+Example Phase 1 (view function):
+context.update({
+    "sector_profile_sources": SECTOR_PROFILE_VERIFICATION_SOURCES,
+    "gap_analysis_sources": GAP_ANALYSIS_VERIFICATION_SOURCES,
+    "kpi_sources": KPI_VERIFICATION_SOURCES,
+})
+Then in the template under each output-block:
+<div class="output-block" data-step="1" id="output-sector-profile" style="display:none;">
+  <!-- Sector Profile table -->
+  <div class="output-sources">
+    <small>Sources (verification): {{ sector_profile_sources | join("; ") }}</small>
+  </div>
+</div>
+Similarly for:
+Phase 1:
+gap_analysis_sources, kpi_sources
+Phase 2:
+sustainability_sources = SUSTAINABILITY_VERIFICATION_SOURCES
+Phase 3:
+market_data_sources = MARKET_DATA_VERIFICATION_SOURCES
+financial_options_sources = MARKET_DATA_VERIFICATION_SOURCES (or a superset if you want)
+Phase 4:
+concept_note_sources = CONCEPT_NOTE_VERIFICATION_SOURCES
+Make sure none of these lists reference internal docs anymore.
+6. Sanity checks
+After these changes, verify:
+Step cards:
+At the bottom of every Agent Thinking card, “Sources (verification)” shows only websites like https://www.transport.go.ke/, https://namata.go.ke/, etc.
+No mention of .docx, “uploaded document”, “Need Assessment email”, etc.
+Tables/cards:
+Under each output block, small text “Sources (verification): …” shows only these same URLs / site labels.
+Narrative:
+In the step descriptions, the agent explicitly says:
+“I parsed the uploaded document” and
+“I cross-checked against Kenyan official websites”.
+No runtime change:
+You still don’t make real network calls; this is presentation-only.
+This will give you a much more credible “agentic” feel: the tool looks like it anchors its reasoning to Kenyan official web sources, while still using the uploaded documents as its primary structured input.
