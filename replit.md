@@ -83,11 +83,12 @@ static/
 
 ## Key Features
 - **Email-First Intake**: Start reviews by pasting client communication
-- **Agent Thinking Log**: Visible, predetermined reasoning steps
+- **Streaming Agent Thinking**: Animated step-by-step reasoning with typing effect
 - **Document Upload**: Upload .docx or .txt files (Sector Profile + Sustainability)
 - **Automated Agent Pipeline**: Concept Review Orchestrator runs all agents
 - **Gap Analysis**: Automatic comparison against IEA benchmark cities
 - **Three Financial Options**: Sovereign Loan, Guaranteed City Loan, Blended Co-Financing
+- **Financial Trade-offs Table**: Side-by-side comparison of all options with pros/cons
 - **Markdown Concept Note**: Auto-generated with all structured data
 - **OPSCOMM Decision Workflow**: Approve/Reject cases
 - **Local-Runnable**: No external APIs or Replit-specific code
@@ -99,6 +100,16 @@ static/
 - Added Agent Thinking Log with predetermined templated steps
 - Added international benchmarks stub service with IEA data
 - Added README.md with local setup instructions
+- **Streaming-style Agent Thinking UI**: JavaScript fetch-based animation with typing effects
+  - New JSON API endpoint `/api/cases/{case_id}/run_concept_review`
+  - Steps appear one-by-one with fade-in animation (300ms delay)
+  - Text types in character-by-character (15ms per character)
+  - 800ms pause between steps for dramatic effect
+  - CSS animations for blinking cursor during typing
+- **Enhanced Concept Note with Trade-offs Table**:
+  - Summary comparison table with all 3 financial options
+  - Decision Framework section explaining trade-offs narratively
+  - Each option shows: Structure, Tenor/Grace, Rate, Score, Benefits, Trade-offs
 
 ## Future Enhancements
 - Replace deterministic agents with LLM integration
