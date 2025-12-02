@@ -41,13 +41,14 @@ templates/              # Jinja2 HTML templates
   cases_list.html
   case_detail.html
   concept_note.html
+  review_concept_note.html   # Review & approve concept note
 
 static/
   styles.css            # CSS styling
 ```
 
 ## Data Model
-1. **Case** - Main project entity (name, country, sector, status, agent_thinking_log)
+1. **Case** - Main project entity (name, country, sector, status, agent_thinking_log, selected_financial_option_id)
 2. **CaseDocuments** - Raw text inputs for each document type
 3. **SectorProfile** - Parsed fleet and operational metrics
 4. **GapAnalysisItem** - Comparison against international benchmarks
@@ -113,6 +114,14 @@ static/
 - **Delete Case functionality**:
   - Delete button on All Cases page with confirmation modal
   - Removes all related data (documents, profiles, analysis items, etc.)
+- **Review & Approve Workflow**:
+  - New "Proceed to Review" button after agent thinking completes
+  - Review page displays full concept note with radio button selection for financial instrument
+  - Users must select one of three financial options (A, B, or C) before approval
+  - Approve button disabled until selection made (client-side validation)
+  - Server-side validation prevents approval without selection
+  - Case status transitions: In Review → Approved or Rejected
+  - Financial instrument names stored clean (e.g., "Sovereign Loan"); Option A/B/C labels added in presentation layer only
 
 ## Future Enhancements
 - Replace deterministic agents with LLM integration
