@@ -44,15 +44,17 @@ MOCK_DEFAULTS = {
 }
 
 
-def _fallback(value: Any, key: str, allow_zero: bool = False) -> Any:
+def _fallback(value: Any, key: str) -> Any:
     """
-    Returns value if it is non-null and (optionally) non-zero.
-    Otherwise, returns a mock default for the given key (if available).
+    Returns value if it is non-null. Otherwise, returns a mock default for
+    the given key (if available).
+    
+    This function ONLY replaces None values, not zeros. Zero is preserved
+    as it may represent legitimate data (e.g., 0 hybrid buses, 0 electric buses).
     
     Args:
         value: The parsed value
         key: The key to look up in MOCK_DEFAULTS
-        allow_zero: If True, 0 is treated as a valid value (e.g., 0% electrification)
         
     Returns:
         The original value or a mock default
@@ -61,13 +63,6 @@ def _fallback(value: Any, key: str, allow_zero: bool = False) -> Any:
     """
     if value is None:
         return MOCK_DEFAULTS.get(key)
-    
-    if not allow_zero:
-        try:
-            if isinstance(value, (int, float)) and value == 0:
-                return MOCK_DEFAULTS.get(key, value)
-        except TypeError:
-            pass
     
     return value
 
@@ -101,11 +96,12 @@ def run_concept_review_for_case(case: Case, case_docs: CaseDocuments) -> Dict[st
     
     # =========================================================================
     # Apply mock defaults for demo realism (DEMO-ONLY - remove in production)
+    # Only None values are replaced; zeros are preserved as legitimate data
     # =========================================================================
     sector_data["fleet_total"] = _fallback(sector_data.get("fleet_total"), "fleet_total")
     sector_data["fleet_diesel"] = _fallback(sector_data.get("fleet_diesel"), "diesel_buses")
     sector_data["fleet_hybrid"] = _fallback(sector_data.get("fleet_hybrid"), "hybrid_buses")
-    sector_data["fleet_electric"] = _fallback(sector_data.get("fleet_electric"), "electric_buses", allow_zero=True)
+    sector_data["fleet_electric"] = _fallback(sector_data.get("fleet_electric"), "electric_buses")
     sector_data["depots"] = _fallback(sector_data.get("depots"), "depots")
     sector_data["daily_ridership"] = _fallback(sector_data.get("daily_ridership"), "daily_ridership")
     sector_data["annual_opex_usd"] = _fallback(sector_data.get("annual_opex_usd"), "annual_opex_usd")
