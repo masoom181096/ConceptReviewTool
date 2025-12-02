@@ -413,6 +413,109 @@ async def submit_decision(
     return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
 
 
+@app.get("/cases/{case_id}/review", response_class=HTMLResponse)
+async def review_concept_note(
+    request: Request,
+    case_id: int,
+    error_message: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Show the full Concept Note along with the three financial options
+    as radio buttons, and Approve/Reject buttons at the bottom.
+    """
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    concept_note = db.query(ConceptNote).filter(ConceptNote.case_id == case_id).first()
+    if not concept_note:
+        raise HTTPException(status_code=404, detail="Concept note not generated yet")
+    
+    financial_options = db.query(FinancialOption).filter(
+        FinancialOption.case_id == case_id
+    ).order_by(FinancialOption.total_score.desc()).all()
+    
+    content_html = markdown.markdown(
+        concept_note.content_markdown or "",
+        extensions=["tables", "fenced_code"]
+    )
+    
+    return templates.TemplateResponse(
+        "review_concept_note.html",
+        {
+            "request": request,
+            "case": case,
+            "concept_note": concept_note,
+            "concept_note_html": content_html,
+            "financial_options": financial_options,
+            "error_message": error_message
+        }
+    )
+
+
+@app.post("/cases/{case_id}/review/decision", response_class=HTMLResponse)
+async def review_decision(
+    request: Request,
+    case_id: int,
+    decision: str = Form(...),
+    selected_option_id: int = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Handle approval/rejection of the Concept Note.
+    Approval requires a selected financial option.
+    """
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    if decision == "approve":
+        if selected_option_id is None:
+            concept_note = db.query(ConceptNote).filter(ConceptNote.case_id == case_id).first()
+            financial_options = db.query(FinancialOption).filter(
+                FinancialOption.case_id == case_id
+            ).order_by(FinancialOption.total_score.desc()).all()
+            
+            content_html = markdown.markdown(
+                concept_note.content_markdown or "",
+                extensions=["tables", "fenced_code"]
+            ) if concept_note else ""
+            
+            return templates.TemplateResponse(
+                "review_concept_note.html",
+                {
+                    "request": request,
+                    "case": case,
+                    "concept_note": concept_note,
+                    "concept_note_html": content_html,
+                    "financial_options": financial_options,
+                    "error_message": "Please select a financial instrument before approving."
+                }
+            )
+        
+        selected_option = db.query(FinancialOption).filter(
+            FinancialOption.id == selected_option_id,
+            FinancialOption.case_id == case_id
+        ).first()
+        
+        if not selected_option:
+            raise HTTPException(status_code=400, detail="Invalid financial option selected")
+        
+        case.selected_financial_option_id = selected_option_id
+        case.status = "APPROVED"
+    
+    elif decision == "reject":
+        case.status = "ARCHIVED"
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid decision")
+    
+    db.commit()
+    
+    return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)

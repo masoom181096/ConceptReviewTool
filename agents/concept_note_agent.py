@@ -222,7 +222,7 @@ def _build_financial_options(options: List[Dict]) -> str:
     table_rows = []
     for idx, opt in enumerate(sorted_options):
         label = chr(ord('A') + idx)
-        name = opt.get('name', f'Option {label}')
+        name = opt.get('name', 'Unknown Instrument')
         tenor = opt.get('tenor_years', 'N/A')
         grace = opt.get('grace_period_years', 'N/A')
         rate_bps = opt.get('all_in_rate_bps', 0)
@@ -238,12 +238,12 @@ def _build_financial_options(options: List[Dict]) -> str:
     summary_table = "\n".join(table_rows)
     
     best_label = "A"
-    best_name = sorted_options[0].get('name', 'Option A') if sorted_options else 'Option A'
+    best_name = sorted_options[0].get('name', 'the preferred option') if sorted_options else 'the preferred option'
     
     option_narratives = []
     for idx, opt in enumerate(sorted_options):
         label = chr(ord('A') + idx)
-        name = opt.get('name', f'Option {label}')
+        name = opt.get('name', 'Unknown Instrument')
         pros_short = opt.get('pros', '').split(';')[0] if opt.get('pros') else ''
         cons_short = opt.get('cons', '').split(';')[0] if opt.get('cons') else ''
         option_narratives.append(f"- **Option {label}** ({name}): {pros_short}. Trade-off: {cons_short}.")
@@ -253,7 +253,7 @@ def _build_financial_options(options: List[Dict]) -> str:
     detail_sections = []
     for idx, opt in enumerate(sorted_options):
         label = chr(ord('A') + idx)
-        name = opt.get('name', f'Option {label}')
+        name = opt.get('name', 'Unknown Instrument')
         instrument = opt.get('instrument_type', 'N/A')
         principal = opt.get('principal_amount_usd', 0)
         principal_str = f"${principal/1e6:.0f}M" if principal > 0 else "N/A"
@@ -291,8 +291,8 @@ The following financing structures have been identified for this project. Scores
 
 ### 6.1 Summary Comparison
 
-| Option | Structure | Tenor / Grace | All-in Rate | Total Score | Key Benefits | Key Trade-offs |
-|--------|-----------|---------------|-------------|-------------|--------------|----------------|
+| Option | Instrument | Tenor / Grace | All-in Rate | Total Score | Key Benefits | Key Trade-offs |
+|--------|------------|---------------|-------------|-------------|--------------|----------------|
 {summary_table}
 
 ### Decision Framework

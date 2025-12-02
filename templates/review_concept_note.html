@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Review Concept Note - {{ case.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Review Concept Note</h2>
+        <p class="subtitle">{{ case.name }} - {{ case.country }}</p>
+    </div>
+    <a href="/cases/{{ case.id }}" class="btn btn-secondary">Back to Case</a>
+</div>
+
+<div class="review-container">
+    <div class="concept-note-content">
+        {{ concept_note_html | safe }}
+    </div>
+    
+    <hr class="section-divider" />
+    
+    <div class="card review-decision-card">
+        <h3>Select Financial Instrument</h3>
+        <p class="help-text">Choose the financing option you want to approve for this project:</p>
+        
+        <form action="/cases/{{ case.id }}/review/decision" method="post" id="review-form">
+            <div class="financial-options-list">
+                {% for opt in financial_options %}
+                {% set label = 'ABC'[loop.index0] if loop.index0 < 3 else chr(65 + loop.index0) %}
+                <div class="financial-option-choice">
+                    <label class="radio-card">
+                        <input type="radio" name="selected_option_id" value="{{ opt.id }}" />
+                        <div class="radio-card-content">
+                            <div class="option-header">
+                                <strong>Option {{ label }} - {{ opt.name }}</strong>
+                                <span class="option-score">Score: {{ opt.total_score }}</span>
+                            </div>
+                            <div class="option-details">
+                                <span>Tenor: {{ opt.tenor_years }} years</span>
+                                <span>Grace: {{ opt.grace_period_years }} years</span>
+                                <span>All-in Rate: {{ (opt.all_in_rate_bps / 100)|round(2) }}%</span>
+                            </div>
+                            <div class="option-pros-cons">
+                                <p><strong>Benefits:</strong> {{ opt.pros }}</p>
+                                <p><strong>Trade-offs:</strong> {{ opt.cons }}</p>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if error_message %}
+            <div class="error-message">
+                {{ error_message }}
+            </div>
+            {% endif %}
+            
+            <div class="review-actions">
+                <button type="submit" name="decision" value="approve" id="approve-btn" class="btn btn-primary btn-large" disabled>
+                    Approve
+                </button>
+                <button type="submit" name="decision" value="reject" class="btn btn-danger btn-large">
+                    Reject
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const approveBtn = document.getElementById('approve-btn');
+    const radios = document.querySelectorAll('input[name="selected_option_id"]');
+    
+    function updateApproveState() {
+        let anyChecked = false;
+        radios.forEach(function(r) {
+            if (r.checked) anyChecked = true;
+        });
+        approveBtn.disabled = !anyChecked;
+    }
+    
+    radios.forEach(function(r) {
+        r.addEventListener('change', updateApproveState);
+    });
+    
+    updateApproveState();
+});
+</script>
+{% endblock %}

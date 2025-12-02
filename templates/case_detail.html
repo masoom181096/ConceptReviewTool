@@ -94,9 +94,14 @@
             <div id="thinking-steps" class="thinking-log"></div>
             <div id="thinking-complete" style="display: none; margin-top: 1rem;">
                 <p class="success-message">Analysis complete! Results saved to database.</p>
-                <button onclick="location.reload()" class="btn btn-secondary">
-                    Refresh Page to See Results
-                </button>
+                <div class="action-buttons" style="margin-top: 1rem;">
+                    <a href="/cases/{{ case.id }}/review" class="btn btn-primary">
+                        Proceed to Review and Approve Concept Note
+                    </a>
+                    <button onclick="location.reload()" class="btn btn-secondary">
+                        Refresh Page to See Results
+                    </button>
+                </div>
             </div>
         </section>
         

@@ -905,3 +905,133 @@ body {
     display: flex;
     gap: 0.5rem;
 }
+
+.review-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.concept-note-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 2rem;
+}
+
+.section-divider {
+    border: none;
+    border-top: 2px solid var(--border-color);
+    margin: 2rem 0;
+}
+
+.review-decision-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.financial-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.financial-option-choice {
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.financial-option-choice:hover {
+    border-color: var(--primary-light);
+}
+
+.radio-card {
+    display: block;
+    cursor: pointer;
+    padding: 1.25rem;
+}
+
+.radio-card input[type="radio"] {
+    display: none;
+}
+
+.radio-card input[type="radio"]:checked + .radio-card-content {
+    background: rgba(0, 51, 102, 0.05);
+}
+
+.financial-option-choice:has(input[type="radio"]:checked) {
+    border-color: var(--primary-color);
+    background: rgba(0, 51, 102, 0.02);
+}
+
+.radio-card-content {
+    padding: 0.5rem;
+    border-radius: 6px;
+}
+
+.option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.option-header strong {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+}
+
+.option-score {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.option-details {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.option-pros-cons {
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.option-pros-cons p {
+    margin-bottom: 0.5rem;
+}
+
+.review-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+    justify-content: flex-end;
+}
+
+.review-actions .btn {
+    min-width: 150px;
+}
+
+.error-message {
+    color: var(--danger-color);
+    background: rgba(220, 53, 69, 0.1);
+    padding: 1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.btn-large {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+}
