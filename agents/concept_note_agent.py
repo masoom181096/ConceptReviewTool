@@ -107,15 +107,17 @@ def _build_need_assessment(need: Dict) -> str:
 
 def _build_sector_profile(profile: Dict) -> str:
     """Build sector profile section."""
-    fleet_total = profile.get('fleet_total', 'N/A')
-    fleet_diesel = profile.get('fleet_diesel', 'N/A')
-    fleet_hybrid = profile.get('fleet_hybrid', 'N/A')
-    fleet_electric = profile.get('fleet_electric', 'N/A')
-    depots = profile.get('depots', 'N/A')
-    ridership = profile.get('daily_ridership', 'N/A')
+    fleet_total = profile.get('fleet_total') or 'N/A'
+    fleet_diesel = profile.get('fleet_diesel') or 'N/A'
+    fleet_hybrid = profile.get('fleet_hybrid') or 'N/A'
+    fleet_electric = profile.get('fleet_electric') or 'N/A'
+    depots = profile.get('depots') or 'N/A'
+    ridership = profile.get('daily_ridership')
+    ridership_str = f"{ridership:,}" if ridership else "N/A"
     opex = profile.get('annual_opex_usd', 0)
     opex_str = f"${opex/1e6:.1f}M" if opex and opex > 0 else "N/A"
-    co2 = profile.get('annual_co2_tons', 'N/A')
+    co2 = profile.get('annual_co2_tons')
+    co2_str = f"{co2:,}" if co2 else "N/A"
     notes = profile.get('notes', '')
     
     return f"""## 3. Sector Profile - Baseline
@@ -134,9 +136,9 @@ def _build_sector_profile(profile: Dict) -> str:
 
 | Metric | Current Value |
 |--------|---------------|
-| Daily Ridership | {ridership:,} passengers | 
+| Daily Ridership | {ridership_str} passengers | 
 | Annual OPEX | {opex_str} |
-| Annual CO2 Emissions | {co2:,} tons |
+| Annual CO2 Emissions | {co2_str} tons |
 
 ### 3.3 Key Observations
 {notes if notes else 'Fleet requires significant modernization to meet climate targets and service quality standards.'}"""
