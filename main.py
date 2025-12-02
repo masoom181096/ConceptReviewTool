@@ -823,6 +823,130 @@ async def reset_phases(case_id: int, db: Session = Depends(get_db)):
     return RedirectResponse(url=f"/cases/{case_id}/phases/1", status_code=302)
 
 
+@app.post("/api/cases/{case_id}/phases/{phase_no}/run")
+async def api_run_phase(
+    case_id: int,
+    phase_no: int,
+    db: Session = Depends(get_db)
+):
+    """
+    JSON API endpoint to execute a phase and return thinking steps.
+    Returns JSON with thinking_steps for frontend streaming animation.
+    """
+    if phase_no < 1 or phase_no > 4:
+        return JSONResponse({"status": "error", "detail": "Invalid phase number"}, status_code=400)
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        return JSONResponse({"status": "error", "detail": "Case not found"}, status_code=404)
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    if not docs:
+        return JSONResponse({"status": "error", "detail": "No documents found for this case"}, status_code=400)
+    
+    try:
+        if phase_no == 1:
+            result = run_phase1_sectors_and_kpis(case, docs)
+            _persist_phase1_results(case_id, result, db)
+        
+        elif phase_no == 2:
+            if not case.phase1_completed:
+                return JSONResponse({"status": "error", "detail": "Phase 1 must be completed first"}, status_code=400)
+            result = run_phase2_sustainability(case, docs)
+            _persist_phase2_results(case_id, result, db)
+        
+        elif phase_no == 3:
+            if not case.phase2_completed:
+                return JSONResponse({"status": "error", "detail": "Phase 2 must be completed first"}, status_code=400)
+            result = run_phase3_financial_options(case, docs)
+            _persist_phase3_results(case_id, result, db)
+        
+        elif phase_no == 4:
+            if not case.phase3_completed:
+                return JSONResponse({"status": "error", "detail": "Phase 3 must be completed first"}, status_code=400)
+            
+            sector_profile = db.query(SectorProfile).filter(SectorProfile.case_id == case_id).first()
+            gap_items = db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).all()
+            kpis = db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).all()
+            financial_options = db.query(FinancialOption).filter(
+                FinancialOption.case_id == case_id
+            ).all()
+            sustainability = db.query(SustainabilityProfile).filter(
+                SustainabilityProfile.case_id == case_id
+            ).first()
+            
+            sector_data = {
+                "fleet_total": sector_profile.fleet_total if sector_profile else None,
+                "fleet_diesel": sector_profile.fleet_diesel if sector_profile else None,
+                "fleet_hybrid": sector_profile.fleet_hybrid if sector_profile else None,
+                "fleet_electric": sector_profile.fleet_electric if sector_profile else None,
+                "depots": sector_profile.depots if sector_profile else None,
+                "daily_ridership": sector_profile.daily_ridership if sector_profile else None,
+                "annual_opex_usd": sector_profile.annual_opex_usd if sector_profile else None,
+                "annual_co2_tons": sector_profile.annual_co2_tons if sector_profile else None,
+            }
+            
+            gap_items_list = [{
+                "indicator": g.indicator,
+                "kenya_value": g.kenya_value,
+                "benchmark_city": g.benchmark_city,
+                "benchmark_value": g.benchmark_value,
+                "gap_delta": g.gap_delta,
+                "comparability": g.comparability,
+                "comment": g.comment,
+            } for g in gap_items]
+            
+            kpis_list = [{
+                "name": k.name,
+                "baseline_value": k.baseline_value,
+                "unit": k.unit,
+                "target_value": k.target_value,
+                "category": k.category,
+                "notes": k.notes,
+            } for k in kpis]
+            
+            options_list = [{
+                "name": o.name,
+                "instrument_type": o.instrument_type,
+                "currency": o.currency,
+                "tenor_years": o.tenor_years,
+                "grace_period_years": o.grace_period_years,
+                "all_in_rate_bps": o.all_in_rate_bps,
+                "principal_amount_usd": o.principal_amount_usd,
+                "repayment_score": o.repayment_score,
+                "rate_score": o.rate_score,
+                "total_score": o.total_score,
+                "pros": o.pros,
+                "cons": o.cons,
+            } for o in financial_options]
+            
+            sustainability_data = {
+                "category": sustainability.category if sustainability else None,
+                "co2_reduction_tons": sustainability.co2_reduction_tons if sustainability else None,
+                "pm25_reduction": sustainability.pm25_reduction if sustainability else None,
+                "accessibility_notes": sustainability.accessibility_notes if sustainability else None,
+                "policy_alignment_notes": sustainability.policy_alignment_notes if sustainability else None,
+                "key_risks": sustainability.key_risks if sustainability else None,
+                "mitigations": sustainability.mitigations if sustainability else None,
+            }
+            
+            result = run_phase4_concept_note(
+                case, docs,
+                sector_data, gap_items_list, kpis_list,
+                options_list, sustainability_data
+            )
+            _persist_phase4_results(case_id, result, db)
+        
+        return JSONResponse({
+            "status": "ok",
+            "thinking_steps": result.get("thinking_steps", []),
+            "phase_no": phase_no
+        })
+    
+    except Exception as e:
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5000)

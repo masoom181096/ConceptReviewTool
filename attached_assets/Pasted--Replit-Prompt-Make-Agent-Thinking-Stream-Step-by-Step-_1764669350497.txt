@@ -1,0 +1,195 @@
+🔧 Replit Prompt – Make Agent Thinking Stream Step-by-Step (LLM-like) for Each Phase
+I already refactored the Concept Review Tool into 4 phases with:
+run_phase1_sectors_and_kpis, run_phase2_sustainability, run_phase3_financial_options, run_phase4_concept_note in agents/concept_review_orchestrator.py.
+A set of templates like phase1.html, phase2.html, etc., each showing:
+a Run Phase button
+“Agent Thinking / Background Steps”
+outputs (tables/cards) for that phase.
+Currently, the Agent Thinking appears all at once because it is rendered server-side via Jinja.
+I want to change this so that whenever I run a phase, the agent thinking:
+Streams in step by step like an LLM tool-using run,
+With a small delay between steps (e.g., 800–1200 ms),
+Each step fades in / “types in” instead of appearing all at once,
+And this is driven by the frontend, not by Jinja.
+Please implement the following changes.
+1. Add JSON “run phase” API endpoints
+In addition to the existing POST /cases/{case_id}/phases/{phase_no}/run (which currently redirects and re-renders HTML), create a JSON API that returns only results:
+from fastapi.responses import JSONResponse
+@app.post("/api/cases/{case_id}/phases/{phase_no}/run")
+async def api_run_phase(case_id: int, phase_no: int):
+    """
+    Execute only the requested phase (1..4), persist results,
+    and return JSON with:
+      - thinking_steps: list of {step, title, description}
+      - status: "ok"
+    """
+Implementation details:
+Load Case and CaseDocuments.
+Switch on phase_no:
+1 → run_phase1_sectors_and_kpis
+2 → run_phase2_sustainability
+3 → run_phase3_financial_options
+4 → run_phase4_concept_note
+Each phase function should:
+Perform its work,
+Save entities to the DB as before,
+Return a dict including "thinking_steps": [...].
+After calling the phase function:
+Mark case.phaseX_completed = True and commit.
+Return:
+return JSONResponse({
+    "status": "ok",
+    "thinking_steps": result["thinking_steps"],
+})
+Important: Do not render HTML for thinking steps on the server anymore when a phase is run via this API. The HTML should be built by JavaScript on the client.
+Keep your existing non-JSON /cases/{case_id}/phases/{phase_no}/run if you want, but the Run Phase button in the UI must call the /api/... endpoint via JS.
+2. Update Phase templates to use JS streaming
+For each phase template (phase1.html, phase2.html, etc.):
+2.1 Change the Run button to a plain button
+Instead of submitting a <form> that triggers a full page reload, make it a regular button:
+<button
+  id="run-phase-btn"
+  type="button"
+  data-case-id="{{ case.id }}"
+  data-phase="{{ current_phase }}"
+>
+  Run Phase {{ current_phase }}
+</button>
+2.2 Add a container for thinking steps
+<section id="agent-thinking-section" style="margin-top: 1rem;">
+  <h3>Agent Thinking / Background Steps</h3>
+  <div id="thinking-status" class="thinking-status">Phase not run yet.</div>
+  <div id="thinking-steps"></div>
+</section>
+thinking-status will show messages like “Running…”, “Completed”.
+thinking-steps will be filled progressively by JS.
+2.3 Add JavaScript to stream the steps
+At the bottom of each phase template (or in a shared JS file included once), add:
+<script>
+  (function() {
+    const runBtn = document.getElementById("run-phase-btn");
+    if (!runBtn) return;
+    const caseId = runBtn.getAttribute("data-case-id");
+    const phaseNo = runBtn.getAttribute("data-phase");
+    const statusEl = document.getElementById("thinking-status");
+    const stepsContainer = document.getElementById("thinking-steps");
+    runBtn.addEventListener("click", async () => {
+      // reset UI
+      statusEl.textContent = "Contacting agent and starting phase " + phaseNo + "...";
+      stepsContainer.innerHTML = "";
+      runBtn.disabled = true;
+      try {
+        const response = await fetch(`/api/cases/${caseId}/phases/${phaseNo}/run`, {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        });
+        if (!response.ok) {
+          statusEl.textContent = "Agent error. Please try again.";
+          runBtn.disabled = false;
+          return;
+        }
+        const data = await response.json();
+        const steps = data.thinking_steps || [];
+        if (!steps.length) {
+          statusEl.textContent = "Phase completed, but no thinking steps were returned.";
+          runBtn.disabled = false;
+          return;
+        }
+        statusEl.textContent = "Phase running...";
+        // progressively render steps
+        let delay = 0;
+        const delayPerStep = 1000; // ms, tweak for realism
+        steps.forEach((stepObj, idx) => {
+          const stepDiv = document.createElement("div");
+          stepDiv.classList.add("thinking-step");
+          stepDiv.style.opacity = "0";
+          stepDiv.innerHTML = `
+            <div class="thinking-step-header">
+              <span class="thinking-step-number">Step ${stepObj.step || (idx + 1)}</span>
+              <span class="thinking-step-title">${stepObj.title || ""}</span>
+            </div>
+            <div class="thinking-step-body">${(stepObj.description || "").replace(/\n/g, "<br>")}</div>
+          `;
+          stepsContainer.appendChild(stepDiv);
+          setTimeout(() => {
+            stepDiv.style.transition = "opacity 0.5s ease-in-out, transform 0.5s ease-in-out";
+            stepDiv.style.opacity = "1";
+            stepDiv.style.transform = "translateY(0)";
+          }, delay);
+          // initial offset for slide-in effect
+          stepDiv.style.transform = "translateY(10px)";
+          delay += delayPerStep;
+        });
+        // after all steps are shown, update status and optionally refresh outputs
+        setTimeout(() => {
+          statusEl.textContent = "Phase " + phaseNo + " completed. You can now review the outputs and proceed.";
+          runBtn.disabled = false;
+          // Optionally refresh parts of the page (e.g. outputs) by reloading:
+          // location.reload();
+          // or call a small JSON "get outputs" endpoint.
+        }, delay + 300);
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Unexpected error. Please try again.";
+        runBtn.disabled = false;
+      }
+    });
+  })();
+</script>
+This does the key UX work:
+Clicking Run Phase calls /api/cases/{id}/phases/{phase}/run.
+The backend runs everything and returns a full thinking_steps array.
+The frontend pretends it’s streaming by:
+Creating DOM nodes for each step,
+Revealing them one by one with setTimeout and CSS transitions.
+No full page reload, no all-at-once reasoning dump.
+3. Make thinking steps visually “LLM-like”
+In your CSS (e.g. static/styles.css), add:
+.thinking-status {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.thinking-step {
+  border-left: 3px solid #2563eb;
+  background: #f9fafb;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+}
+.thinking-step-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+.thinking-step-number {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #2563eb;
+  margin-right: 0.5rem;
+}
+.thinking-step-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.thinking-step-body {
+  font-size: 0.9rem;
+  color: #374151;
+}
+This makes each step look like a conversation “turn” from the agent.
+4. Reuse this for all four phases
+Include the same JS snippet and CSS on all four phase templates.
+Make sure for each template you pass the correct data-phase="{{ current_phase }}".
+Since the JS reads caseId and phaseNo from data attributes, you don’t need four separate scripts.
+5. Keep server-side thinking for re-opened phases (optional)
+If a phase is already completed and I just navigate back to it, I might want to:
+either show the steps instantly (no animation), or
+let the user click a “Replay Agent Thinking” button that replays the animation using stored thinking_steps.
+To do that:
+Save thinking_steps per phase in a small AgentRunLog table (case_id, phase_no, json_blob).
+On GET /cases/{id}/phases/{phase}:
+Load the last log for that phase and pass it into the template as prior_thinking_steps.
+Optionally, pre-render them server-side in collapsed form, OR add a “Replay Agent Thinking” button that uses the same JS logic but with prior_thinking_steps embedded in a <script> block as an initial array instead of calling the API again.
+For now, the critical requirement is: when the user clicks Run Phase, they see step-by-step reasoning with delays and animation, not an instant dump. The instructions above should enforce that behavior.
