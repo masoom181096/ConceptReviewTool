@@ -75,44 +75,86 @@
             </form>
         </div>
         
-        <div class="card">
-            <h3>Agent Actions</h3>
-            <div class="action-buttons">
-                <button id="run-agent-btn" type="button" class="btn btn-primary btn-large">
-                    Run Concept Review Agent
-                </button>
+        <div class="start-review-section">
+            <h3>Concept Review Workflow</h3>
+            <p>
+                Run the multi-phase concept review process. Each phase analyzes different aspects 
+                of the project and must complete in sequence.
+            </p>
+            
+            {% set any_phase_started = case.phase1_completed or case.phase2_completed or case.phase3_completed or case.phase4_completed %}
+            {% set all_phases_complete = case.phase1_completed and case.phase2_completed and case.phase3_completed and case.phase4_completed %}
+            
+            <div class="action-buttons" style="justify-content: center; gap: 1rem;">
+                {% if not any_phase_started %}
+                    <a href="/cases/{{ case.id }}/phases/1" class="btn btn-primary btn-large">
+                        Start Concept Review
+                    </a>
+                {% elif all_phases_complete %}
+                    <a href="/cases/{{ case.id }}/review" class="btn btn-success btn-large">
+                        Review and Approve Concept Note
+                    </a>
+                    <a href="/cases/{{ case.id }}/phases/1" class="btn btn-secondary">
+                        View Phases
+                    </a>
+                {% else %}
+                    {% if not case.phase1_completed %}
+                        <a href="/cases/{{ case.id }}/phases/1" class="btn btn-primary btn-large">
+                            Continue: Phase 1
+                        </a>
+                    {% elif not case.phase2_completed %}
+                        <a href="/cases/{{ case.id }}/phases/2" class="btn btn-primary btn-large">
+                            Continue: Phase 2
+                        </a>
+                    {% elif not case.phase3_completed %}
+                        <a href="/cases/{{ case.id }}/phases/3" class="btn btn-primary btn-large">
+                            Continue: Phase 3
+                        </a>
+                    {% elif not case.phase4_completed %}
+                        <a href="/cases/{{ case.id }}/phases/4" class="btn btn-primary btn-large">
+                            Continue: Phase 4
+                        </a>
+                    {% endif %}
+                {% endif %}
                 
-                <a href="/cases/{{ case.id }}/concept_note" id="view-concept-note-btn" 
-                   class="btn btn-secondary btn-large {% if not concept_note %}hidden{% endif %}"
-                   target="_blank">
+                {% if concept_note %}
+                <a href="/cases/{{ case.id }}/concept_note" class="btn btn-secondary" target="_blank">
                     View Concept Note
                 </a>
+                {% endif %}
             </div>
-            <p class="help-text" style="margin-top: 1rem;">
-                The agent will analyze documents, compare with international benchmarks, 
-                calculate financial options, and generate a Concept Note.
-            </p>
-        </div>
-        
-        <section id="agent-thinking-section" class="card thinking-card" style="display: none;">
-            <h3>
-                <span id="thinking-header-text">Agent Thinking...</span>
-                <span id="thinking-spinner" class="spinner"></span>
-            </h3>
-            <p class="help-text">Watch the agent reason through each step:</p>
-            <div id="thinking-steps" class="thinking-log"></div>
-            <div id="thinking-complete" style="display: none; margin-top: 1rem;">
-                <p class="success-message">Analysis complete! Results saved to database.</p>
-                <div class="action-buttons" style="margin-top: 1rem;">
-                    <a href="/cases/{{ case.id }}/review" class="btn btn-primary">
-                        Proceed to Review and Approve Concept Note
-                    </a>
-                    <button onclick="location.reload()" class="btn btn-secondary">
-                        Refresh Page to See Results
-                    </button>
+            
+            {% if any_phase_started %}
+            <div style="margin-top: 1.5rem;">
+                <p class="help-text" style="margin-bottom: 0.5rem;">Phase Progress:</p>
+                <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+                    <span class="status-pill {% if case.phase1_completed %}status-completed{% else %}status-pending{% endif %}">
+                        Phase 1 {% if case.phase1_completed %}&#10003;{% endif %}
+                    </span>
+                    <span class="status-pill {% if case.phase2_completed %}status-completed{% else %}status-pending{% endif %}">
+                        Phase 2 {% if case.phase2_completed %}&#10003;{% endif %}
+                    </span>
+                    <span class="status-pill {% if case.phase3_completed %}status-completed{% else %}status-pending{% endif %}">
+                        Phase 3 {% if case.phase3_completed %}&#10003;{% endif %}
+                    </span>
+                    <span class="status-pill {% if case.phase4_completed %}status-completed{% else %}status-pending{% endif %}">
+                        Phase 4 {% if case.phase4_completed %}&#10003;{% endif %}
+                    </span>
                 </div>
             </div>
-        </section>
+            {% endif %}
+            
+            {% if any_phase_started %}
+            <div style="margin-top: 1rem;">
+                <form action="/cases/{{ case.id }}/reset_phases" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-secondary" 
+                            onclick="return confirm('Are you sure you want to reset all phases? This will clear all analysis results.');">
+                        Reset All Phases
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
         
         {% if thinking_steps %}
         <div class="card thinking-card" id="saved-thinking-section">
@@ -280,122 +322,4 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const runAgentBtn = document.getElementById('run-agent-btn');
-    const thinkingSection = document.getElementById('agent-thinking-section');
-    const thinkingStepsContainer = document.getElementById('thinking-steps');
-    const thinkingComplete = document.getElementById('thinking-complete');
-    const thinkingSpinner = document.getElementById('thinking-spinner');
-    const thinkingHeaderText = document.getElementById('thinking-header-text');
-    const viewConceptNoteBtn = document.getElementById('view-concept-note-btn');
-    const savedThinkingSection = document.getElementById('saved-thinking-section');
-    
-    const caseId = {{ case.id }};
-    
-    runAgentBtn.addEventListener('click', async function() {
-        runAgentBtn.disabled = true;
-        runAgentBtn.textContent = 'Running...';
-        
-        if (savedThinkingSection) {
-            savedThinkingSection.style.display = 'none';
-        }
-        
-        thinkingSection.style.display = 'block';
-        thinkingStepsContainer.innerHTML = '';
-        thinkingComplete.style.display = 'none';
-        thinkingSpinner.style.display = 'inline-block';
-        thinkingHeaderText.textContent = 'Agent Thinking...';
-        
-        try {
-            const response = await fetch(`/api/cases/${caseId}/run_concept_review`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                await displayThinkingSteps(data.thinking_steps);
-                
-                thinkingSpinner.style.display = 'none';
-                thinkingHeaderText.textContent = 'Agent Thinking Complete';
-                thinkingComplete.style.display = 'block';
-                
-                viewConceptNoteBtn.classList.remove('hidden');
-                
-                runAgentBtn.textContent = 'Run Again';
-                runAgentBtn.disabled = false;
-            } else {
-                throw new Error(data.error || 'Unknown error occurred');
-            }
-        } catch (error) {
-            console.error('Error running concept review:', error);
-            thinkingSpinner.style.display = 'none';
-            thinkingHeaderText.textContent = 'Error';
-            thinkingStepsContainer.innerHTML = `
-                <div class="thinking-step error visible">
-                    <div class="step-header">
-                        <span class="step-number">Error</span>
-                        <span class="step-title">Failed to run concept review</span>
-                    </div>
-                    <p class="step-description">${error.message}</p>
-                </div>
-            `;
-            runAgentBtn.textContent = 'Try Again';
-            runAgentBtn.disabled = false;
-        }
-    });
-    
-    async function displayThinkingSteps(steps) {
-        for (let i = 0; i < steps.length; i++) {
-            const step = steps[i];
-            
-            const stepEl = document.createElement('div');
-            stepEl.className = 'thinking-step';
-            stepEl.innerHTML = `
-                <div class="step-header">
-                    <span class="step-number">Step ${step.step}</span>
-                    <span class="step-title">${step.title}</span>
-                </div>
-                <p class="step-description"></p>
-            `;
-            thinkingStepsContainer.appendChild(stepEl);
-            
-            await sleep(300);
-            stepEl.classList.add('visible');
-            
-            const descEl = stepEl.querySelector('.step-description');
-            await typeText(descEl, step.description, 15);
-            
-            stepEl.classList.add('typing-complete');
-            
-            if (i < steps.length - 1) {
-                await sleep(800);
-            }
-        }
-    }
-    
-    function typeText(element, text, speed) {
-        return new Promise((resolve) => {
-            let index = 0;
-            const interval = setInterval(() => {
-                if (index < text.length) {
-                    element.textContent += text.charAt(index);
-                    index++;
-                } else {
-                    clearInterval(interval);
-                    resolve();
-                }
-            }, speed);
-        });
-    }
-    
-    function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-});
-</script>
 {% endblock %}
