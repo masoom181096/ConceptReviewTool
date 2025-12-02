@@ -1,0 +1,283 @@
+🔧 Replit Prompt – Richer Agent Thinking + Handling 0 / N/A Values
+I already have the Concept Review Tool with:
+FastAPI + Jinja2 + SQLite + SQLAlchemy
+Email-first intake, Sector Profile + Sustainability uploads
+An orchestrator in agents/concept_review_orchestrator.py that:
+builds sector_profile, gap_items, kpis, financial_options, sustainability_profile, concept_note_content
+returns a thinking_steps list that the frontend shows step-by-step
+Templates that render:
+Sector Profile table
+Gap Analysis table
+Baseline KPIs table
+Financial Options table
+Sustainability Profile
+At the moment:
+The thinking descriptions are fairly short.
+Some values show as 0, N/A, or empty in the tables (e.g. 0 buses, 0 tCO₂, N/A fleet) even though I want the demo to look realistic.
+I want you to:
+Enrich the thinking_steps descriptions in the orchestrator – more explanatory, data-aware, multi-sentence, still deterministic (no LLM calls).
+Introduce a small “mock defaults” layer so that key metrics never show up as 0 or N/A:
+Prefer real parsed values.
+If a field is None, 0, or blank, fill it with a reasonable mock default for this demo.
+For any remaining missing values, hide or soften them in the UI (e.g., “—” instead of 0).
+Please implement the following changes.
+1. Add mock defaults + helper functions in the orchestrator
+In agents/concept_review_orchestrator.py:
+Near the top of the file, define a simple mock defaults dict for the Kenya/Nairobi e-bus use case. These are illustrative, not real risk numbers:
+# Mock defaults used when parsing fails or values are missing/zero.
+# These are purely for demo realism and must NOT be treated as actual EBRD data.
+MOCK_DEFAULTS = {
+    "fleet_total": 320,
+    "diesel_buses": 300,
+    "hybrid_buses": 0,
+    "electric_buses": 20,
+    "depots": 2,
+    "daily_ridership": 650_000,
+    "annual_opex_usd": 12_500_000,
+    "annual_co2_tons": 18_200,
+}
+Add a tiny helper to “clean” values:
+def _fallback(value, key: str):
+    """
+    Returns value if it is non-null and non-zero.
+    Otherwise, returns a mock default for the given key (if available).
+    """
+    if value is None:
+        return MOCK_DEFAULTS.get(key)
+    # treat 0 as missing for key fields
+    try:
+        if isinstance(value, (int, float)) and value == 0:
+            return MOCK_DEFAULTS.get(key, value)
+    except TypeError:
+        pass
+    return value
+After your sector profile is created, apply these fallbacks before building thinking_steps and before saving to DB:
+# Example – adapt field names to your actual SectorProfile model
+sector_profile.fleet_total = _fallback(getattr(sector_profile, "fleet_total", None), "fleet_total")
+sector_profile.fleet_diesel = _fallback(getattr(sector_profile, "fleet_diesel", None), "diesel_buses")
+sector_profile.fleet_hybrid = _fallback(getattr(sector_profile, "fleet_hybrid", None), "hybrid_buses")
+sector_profile.fleet_electric = _fallback(getattr(sector_profile, "fleet_electric", None), "electric_buses")
+sector_profile.depots = _fallback(getattr(sector_profile, "depots", None), "depots")
+sector_profile.daily_ridership = _fallback(getattr(sector_profile, "daily_ridership", None), "daily_ridership")
+sector_profile.annual_opex_usd = _fallback(getattr(sector_profile, "annual_opex_usd", None), "annual_opex_usd")
+sector_profile.annual_co2_tons = _fallback(getattr(sector_profile, "annual_co2_tons", None), "annual_co2_tons")
+This ensures the objects used for thinking + tables already carry “nice” values, not zeros.
+Important: add a comment explaining these are demo-only defaults and should be removed in any real implementation.
+2. Build richer thinking_steps using the cleaned data
+Still in run_concept_review_for_case, rebuild the thinking_steps list to be more descriptive.
+Use something like this pattern (adapt names to your actual models):
+thinking_steps = []
+# pull cleaned values
+fleet_total = getattr(sector_profile, "fleet_total", None)
+fleet_diesel = getattr(sector_profile, "fleet_diesel", None)
+fleet_hybrid = getattr(sector_profile, "fleet_hybrid", None)
+fleet_electric = getattr(sector_profile, "fleet_electric", None)
+depots = getattr(sector_profile, "depots", None)
+daily_ridership = getattr(sector_profile, "daily_ridership", None)
+annual_opex = getattr(sector_profile, "annual_opex_usd", None)
+annual_co2 = getattr(sector_profile, "annual_co2_tons", None)
+# ---- STEP 1: Parsing Sector Profile ----
+step1_lines = [
+    "I started by analysing the Sector Profile document to reconstruct how Nairobi’s bus system looks today."
+]
+details = []
+if fleet_total:
+    details.append(f"- I identified a total fleet of **{fleet_total} buses**.")
+if fleet_diesel:
+    details.append(f"- Approximately **{fleet_diesel}** of these are conventional diesel buses.")
+if fleet_hybrid:
+    details.append(f"- Around **{fleet_hybrid}** buses operate as hybrids (diesel–electric).")
+if fleet_electric:
+    details.append(f"- Only **{fleet_electric}** buses are fully electric, indicating a small pilot-scale deployment.")
+if depots:
+    details.append(f"- I noted around **{depots} depots** supporting the network.")
+if daily_ridership:
+    details.append(f"- The system carries roughly **{daily_ridership:,} passenger trips per day**.")
+if annual_opex:
+    details.append(f"- Annual operating expenditure is about **${annual_opex:,.0f}**, dominated by fuel and maintenance.")
+if annual_co2:
+    details.append(f"- Baseline emissions are approximately **{annual_co2:,.0f} tCO₂ per year** from the current fleet.")
+if details:
+    step1_lines.append("From this, the key baseline figures I rely on later are:")
+    step1_lines.extend(details)
+else:
+    step1_lines.append(
+        "The document did not expose clear numeric values, so I kept a primarily qualitative picture of routes, depots and service patterns."
+    )
+step1_lines.append(
+    "These baseline metrics are the starting point for the gap analysis, KPIs and sustainability impact assessment."
+)
+thinking_steps.append({
+    "step": 1,
+    "title": "Parsing the Sector Profile document",
+    "description": "\n".join(step1_lines),
+})
+STEP 2 – International benchmarks & gaps
+Use actual items from gap_items:
+step2_lines = [
+    "Next, I compared Nairobi’s indicators against international benchmarks from cities such as Shenzhen, London and Santiago."
+]
+if gap_items:
+    # highlight electrification gap
+    electrification = [g for g in gap_items if "electrification" in (g.indicator or "").lower()]
+    cost_per_bus = [g for g in gap_items if "operating cost per bus" in (g.indicator or "").lower()]
+    ridership_per_bus = [g for g in gap_items if "ridership per bus" in (g.indicator or "").lower()]
+    if electrification:
+        g = electrification[0]
+        step2_lines.append(
+            f"- For **{g.indicator}**, Nairobi is at **{g.kenya_value}**, compared with **{g.benchmark_value}** in {g.benchmark_city} "
+            f"(classified as a **{g.comparability}** benchmark). This confirms a large gap in electrification of the fleet."
+        )
+    if cost_per_bus:
+        g = cost_per_bus[0]
+        step2_lines.append(
+            f"- For **{g.indicator}**, Nairobi’s value of **{g.kenya_value}** vs **{g.benchmark_value}** in {g.benchmark_city} "
+            "shows that operating costs per bus are higher than in peer systems, suggesting efficiency gains are possible."
+        )
+    if ridership_per_bus:
+        g = ridership_per_bus[0]
+        step2_lines.append(
+            f"- For **{g.indicator}**, I compared Nairobi’s **{g.kenya_value}** with **{g.benchmark_value}** in {g.benchmark_city}, "
+            "which helps assess how intensively each vehicle is being used."
+        )
+    step2_lines.append(
+        "Using these comparisons, I tagged indicators as **high**, **medium** or **low** priority gaps for the pilot project."
+    )
+else:
+    step2_lines.append(
+        "No benchmark records were available in the stubbed data, so I assumed only a qualitative electrification and cost gap."
+    )
+thinking_steps.append({
+    "step": 2,
+    "title": "Comparing with international benchmarks",
+    "description": "\n".join(step2_lines),
+})
+STEP 3 – KPIs
+Use the kpis list:
+step3_lines = ["Then I translated the baseline and gaps into a small set of Key Performance Indicators (KPIs) for the pilot."]
+if kpis:
+    # list a few KPIs
+    for kpi in kpis[:3]:
+        step3_lines.append(
+            f"- I defined **{kpi.name}** with a baseline of **{kpi.baseline_value} {kpi.unit}** and a target of **{kpi.target_value} {kpi.unit}**."
+        )
+    step3_lines.append(
+        "Together, these KPIs capture emissions, cost efficiency and service quality and will later be used to monitor whether the pilot is successful."
+    )
+else:
+    step3_lines.append("In this run I did not generate structured KPIs, so I kept only narrative objectives for emissions and service levels.")
+thinking_steps.append({
+    "step": 3,
+    "title": "Baselining KPIs",
+    "description": "\n".join(step3_lines),
+})
+STEP 4 – Market data & financial options
+Use financial_options and your stubbed Bloomberg data:
+step4_lines = [
+    "After that, I looked at market data and proposed financing structures for the project."
+]
+# If you have a helper get_all_in_10y_green_rate()
+try:
+    from services.stub_market_data import get_all_in_10y_green_rate
+    base_rate = get_all_in_10y_green_rate() * 100  # percentage
+    step4_lines.append(
+        f"- Using stubbed Bloomberg data (EUR 10Y swap + green spread), I derived a base 10-year green rate of around **{base_rate:.2f}%**."
+    )
+except Exception:
+    base_rate = None
+if financial_options:
+    # describe each option briefly
+    for idx, opt in enumerate(financial_options):
+        label = chr(ord("A") + idx)
+        rate_pct = (opt.all_in_rate_bps or 0) / 100.0
+        step4_lines.append(
+            f"- **Option {label} – {opt.name}**: all-in rate ~**{rate_pct:.2f}%**, "
+            f"repayment score **{opt.repayment_score:.1f}**, rate score **{opt.rate_score:.1f}**, total score **{opt.total_score:.1f}**."
+        )
+    step4_lines.append(
+        "I ranked these options using your 60/40 rule (60% repayment capacity, 40% rate competitiveness) so that OPSComm can weigh trade-offs explicitly rather than seeing a single 'best' number."
+    )
+else:
+    step4_lines.append(
+        "No financial options were generated in this run, so the Concept Note only contains a qualitative description of potential instruments."
+    )
+thinking_steps.append({
+    "step": 4,
+    "title": "Retrieving market data and proposing financial options",
+    "description": "\n".join(step4_lines),
+})
+STEP 5 – Sustainability
+step5_lines = ["I then assessed the project’s sustainability characteristics using the uploaded project document."]
+esg_category = getattr(sustainability_profile, "category", None)
+co2_reduction = getattr(sustainability_profile, "co2_reduction_tons", None)
+pm_reduction = getattr(sustainability_profile, "pm25_reduction", None)
+access_notes = getattr(sustainability_profile, "accessibility_notes", None)
+policy_notes = getattr(sustainability_profile, "policy_alignment_notes", None)
+risks = getattr(sustainability_profile, "key_risks", None)
+mitigations = getattr(sustainability_profile, "mitigations", None)
+if esg_category:
+    step5_lines.append(f"- I classified the project as **Category {esg_category}** under E&S screening.")
+if co2_reduction:
+    step5_lines.append(f"- Based on the baseline, the pilot is expected to reduce emissions by roughly **{co2_reduction:,.0f} tCO₂ per year**.")
+if pm_reduction:
+    step5_lines.append(f"- I captured indicative **PM₂.₅** reductions as **{pm_reduction}**, improving local air quality.")
+if access_notes:
+    step5_lines.append(f"- Accessibility: {access_notes}")
+if policy_notes:
+    step5_lines.append(f"- Policy alignment: {policy_notes}")
+if risks:
+    step5_lines.append(f"- Key E&S risks include: {risks}")
+if mitigations:
+    step5_lines.append(f"- Proposed mitigations: {mitigations}")
+if not (esg_category or co2_reduction or pm_reduction or access_notes or policy_notes or risks or mitigations):
+    step5_lines.append("The document did not map cleanly to my ESG template, so I only captured a qualitative note about environmental and social intentions.")
+thinking_steps.append({
+    "step": 5,
+    "title": "Assessing project sustainability",
+    "description": "\n".join(step5_lines),
+})
+STEP 6 – Concept Note generation
+step6_lines = [
+    "Finally, I assembled all of this into a draft Concept Note for OPSComm.",
+    "- The Note summarises the need, current sector context and gaps.",
+    "- It lists the KPIs that will be tracked for the pilot.",
+    "- It lays out the three financing options with their scores and trade-offs.",
+    "- It concludes with the sustainability assessment and key risks.",
+    "This draft is meant as a starting point for human review, not an automated approval."
+]
+thinking_steps.append({
+    "step": 6,
+    "title": "Generating the Concept Note draft",
+    "description": "\n".join(step6_lines),
+})
+Return thinking_steps as part of the orchestrator output as you already do.
+3. Clean up 0 / N/A display in the HTML tables
+Finally, in your relevant templates (case_detail.html or partials):
+Sector Profile table
+Where you currently display raw values like {{ sector_profile.fleet_total }}, wrap them with a filter to hide zeros / None:
+ 
+Then use:
+ 
+Do similar for daily ridership, OPEX, CO₂, depots, etc.
+Gap Analysis & KPIs tables
+For “Kenya Value” and “Benchmark Value”, if they are None or 0 for metrics where that doesn’t make sense, use the same macro so you see — instead of 0.
+For KPIs, don’t show “0.0” baseline/target; show — when missing.
+Optional: you can use the same macro in the Sustainability table for CO₂ reduction etc.
+The key rule: 0 means “real 0” only where it genuinely makes sense (e.g., 0% electrification at baseline).
+For everything else (fleet size, ridership, OPEX, CO₂), treat 0 as “data missing” and either patch with MOCK_DEFAULTS or display —.
+4. Sanity check
+After these changes, I should see:
+In the Agent Thinking panel:
+Each step is multi-line, references actual numbers (fleet, ridership, CO₂, rates, scores), and explains what happened and why.
+In the Sector Profile / KPIs / Gap Analysis tables:
+No more obviously fake 0 buses, 0 tCO₂, N/A where there should be meaningful numbers.
+If parsing failed, rows either show plausible mock values (from MOCK_DEFAULTS) or a clean —, not 0.
+Please keep all this logic clearly commented as demo-only / stubbed so it’s easy to strip out when moving toward a real EBRD integration.
+<td>{{ display_val(sector_profile.fleet_total, "buses") }}</td>
+{% macro display_val(v, unit="") -%}
+  {% if v is not none and v != 0 %}
+    {{ v }}{% if unit %} {{ unit }}{% endif %}
+  {% else %}
+    —
+  {% endif %}
+{%- endmacro %}
