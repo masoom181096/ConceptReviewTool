@@ -1,0 +1,280 @@
+🔧 Master Prompt for Replit – Concept Review Tool (EBRD – Kenya Example)
+You are an expert full-stack developer. Build a small but clean web application called “Concept Review Tool” that prototypes EBRD’s Concept Review Phase automation for large-institution loan requests (e.g., Kenya e-bus project).
+The app should implement a happy-path workflow and a simple internal “agentic” architecture (each “agent” = one Python module/function). No heavy authentication, no external secrets required. Use Python + FastAPI + SQLite on the backend, and a simple HTML/JS frontend with Jinja templates (no React needed).
+I want a working end-to-end prototype that:
+Lets a human user create a Case (this is the gate; automation only starts after this).
+Lets the user manually input or paste text for:
+Need Assessment (email/MoM)
+Sector Profiling docs
+International Benchmark notes
+Ops/Fleet data (baseline KPI)
+Financial data stubs (Bloomberg/SAP view)
+Project Sustainability doc
+Runs a set of Python “agents” that:
+parse these inputs into structured JSON objects,
+compute gap analysis and financial options (with the 60/40 scoring rule),
+assemble a Concept Note draft from all stored entities.
+Stores everything in SQLite via SQLAlchemy models.
+Shows a dashboard per Case with status, data summaries, and the generated Concept Note.
+Supports a simple OPSCOMM decision (Approve → “Next Phase”; Reject → “Archived”).
+No external integrations (Bloomberg, SAP, Monarch, Client Dynamics, Tableau, etc.) should actually call real APIs. Instead, create stub modules that return mock data. All “AI”/LLM steps should be implemented as deterministic Python logic (string parsing, basic calculations, placeholder transformations). I will later replace those with real LLM calls.
+1. Project Structure
+Create the project with the following structure:
+main.py – FastAPI entrypoint, router setup, DB init.
+database.py – SQLAlchemy engine/session and Base.
+models.py – SQLAlchemy models.
+schemas.py – Pydantic models for API I/O.
+agents/
+__init__.py
+need_assessment_agent.py
+sector_profile_agent.py
+gap_analysis_agent.py
+baseline_kpi_agent.py
+financial_structuring_agent.py
+sustainability_agent.py
+concept_note_agent.py
+services/
+stub_market_data.py  (mock “Bloomberg” + peer deals)
+stub_sap_finance.py  (mock repayment / fiscal metrics)
+templates/
+base.html
+cases_list.html
+case_detail.html
+case_stage_form.html
+concept_note.html
+static/ (CSS, minimal styling).
+requirements.txt – include at least fastapi, uvicorn, sqlalchemy, jinja2, pydantic, python-multipart.
+Serve templates using FastAPI’s Jinja integration (Jinja2Templates).
+2. Data Model (SQLite + SQLAlchemy)
+2.1 Core Case / Project
+Case table:
+id (int, PK)
+name (str) – e.g., “Kenya Nairobi E-Bus Fleet”
+country (str)
+sector (str) – e.g., “Urban Transport”
+status (str) – enum: "NEW", "IN_REVIEW", "APPROVED", "ARCHIVED"
+created_at (datetime)
+updated_at (datetime)
+2.2 Input Text / Raw Docs
+For simplicity, store raw text blobs per case:
+CaseDocuments:
+id (PK)
+case_id (FK → Case)
+need_assessment_text (Text)           – email/MoM
+sector_profile_text (Text)            – gov doc
+benchmark_text (Text)                 – international benchmark summary
+ops_fleet_text (Text)                 – ops/fleet/KPI baseline description
+financial_data_text (Text)            – any manual notes for Bloomberg/SAP stub
+sustainability_text (Text)            – project & ESG doc
+2.3 Parsed Entities
+Create separate tables for each major entity.
+SectorProfile
+SectorProfile:
+id (PK)
+case_id (FK)
+fleet_total (Integer, nullable)
+fleet_diesel (Integer, nullable)
+fleet_hybrid (Integer, nullable)
+fleet_electric (Integer, nullable)
+depots (Integer, nullable)
+daily_ridership (Integer, nullable)
+annual_opex_usd (Float, nullable)
+annual_co2_tons (Float, nullable)
+notes (Text, nullable)
+GapAnalysisItem
+GapAnalysisItem:
+id (PK)
+case_id (FK)
+indicator (String) – e.g., “Fleet electrification %”
+kenya_value (Float or String)
+benchmark_city (String)
+benchmark_value (Float or String)
+gap_delta (Float or String)
+comparability (String) – "strong", "weak", "illustrative"
+comment (Text)
+KPI
+BaselineKPI:
+id (PK)
+case_id (FK)
+name (String)
+baseline_value (Float or String)
+unit (String)
+target_value (Float or String, nullable)
+category (String) – e.g., “operations”, “environment”
+notes (Text)
+FinancialOption
+FinancialOption:
+id (PK)
+case_id (FK)
+name (String) – “Option A – Sovereign Loan”, etc.
+instrument_type (String) – e.g., “sovereign_loan”, “bond”, “co-financing”
+currency (String)
+tenor_years (Integer)
+grace_period_years (Integer)
+all_in_rate_bps (Float)  – basis points
+principal_amount_usd (Float)
+repayment_score (Float)  – 0–100
+rate_score (Float)       – 0–100
+total_score (Float)      – 0–100
+pros (Text)
+cons (Text)
+SustainabilityProfile
+SustainabilityProfile:
+id (PK)
+case_id (FK)
+category (String) – e.g., “A”, “B”, “C”
+co2_reduction_tons (Float, nullable)
+pm25_reduction (Float or String, nullable)
+accessibility_notes (Text)
+policy_alignment_notes (Text)
+key_risks (Text)
+mitigations (Text)
+ConceptNote
+ConceptNote:
+id (PK)
+case_id (FK)
+content_markdown (Text)
+created_at (datetime)
+3. Agents – Implement as Python Functions/Modules
+Each agent module should expose a pure Python function that:
+takes relevant raw text + maybe existing entities,
+returns Python dicts / lists that map directly to the models above.
+No AI libraries; just simple parsing/stubbing.
+3.1 Need Assessment Agent
+File: agents/need_assessment_agent.py
+Function: parse_need_assessment(text: str) -> dict
+For now, use simple heuristics:
+find project name, country, rough loan size if mentioned (regex for $ or million),
+extract a short “problem statement” summary (first 2–3 sentences).
+Return dict like:
+main.py should use this when creating or updating a Case (but keep project name editable by user).
+3.2 Sector Profile Agent
+File: agents/sector_profile_agent.py
+Function: build_sector_profile(text: str) -> dict
+Use very simple parsing rules or helper regex:
+search for patterns like 300 buses, 18,200 tons, 12.5M, etc.
+Return dict matching SectorProfile fields.
+3.3 Gap Analysis Agent
+File: agents/gap_analysis_agent.py
+Function: build_gap_analysis(kenya_profile: SectorProfile, benchmarks_text: str) -> list[dict]
+For now, hard-code a few benchmark examples in this agent (e.g., Shenzhen 100% electric, London 35%, Santiago 20%).
+Compute:
+electrification % gap,
+depot coverage gap,
+cost/bus gap.
+Classify comparability as "strong" for Shenzhen/London, "illustrative" for others.
+Return list of dicts for GapAnalysisItem.
+3.4 Baseline KPI Agent
+File: agents/baseline_kpi_agent.py
+Function: build_baseline_kpis(ops_fleet_text: str, sector_profile: SectorProfile) -> list[dict]
+Derive basic KPIs such as:
+“Annual CO2 emissions”,
+“Operating cost per bus”,
+“Daily ridership per bus”.
+Set simple targets (e.g., 30–40% CO₂ reduction) using static percentages.
+Output list of BaselineKPI dicts.
+3.5 Financial Structuring Agent (60/40 scoring)
+File: agents/financial_structuring_agent.py
+Use stub services:
+services/stub_market_data.py – returns mock peer median rates.
+services/stub_sap_finance.py – returns mock repayment indicators (DSCR, debt ratios).
+Function: build_financial_options(text: str) -> list[dict]
+Ignore text for now or use it to tweak principal; main logic is deterministic.
+Construct three options:
+Sovereign Loan
+Sovereign-guaranteed loan to city authority
+Blended/co-financing structure
+For each option:
+choose tenor, grace, all-in rate in bps, principal amount,
+calculate rate_score based on difference vs peer median:
+best rate → ~100, worst → ~0 (simple linear mapping).
+calculate repayment_score using stubbed DSCR/FX risk flags:
+better repayment → higher score.
+compute:
+Fill in rough pros / cons strings.
+Return list of dicts for FinancialOption.
+3.6 Sustainability Agent
+File: agents/sustainability_agent.py
+Function: build_sustainability_profile(text: str) -> dict
+Parse or stub:
+category "B" by default,
+co2_reduction_tons as 30–40% of baseline,
+narrative notes for accessibility, alignment with national policy, key risks & mitigations.
+3.7 Concept Note Agent
+File: agents/concept_note_agent.py
+Function:
+generate_concept_note(case, need_summary, sector_profile, gaps, kpis, options, sustainability) -> str
+Generate Markdown text with sections:
+Executive Summary
+Need Assessment
+Sector Profile – Baseline
+Gap Analysis (with a table)
+Baseline KPIs
+Financial Options (3 options with scores)
+Sustainability & ESG
+Recommendation (just state: “OPSComm to choose one of the options or propose alternative.”)
+All numbers should come from the passed objects; do not invent extra numbers.
+4. FastAPI Routes & Frontend Behaviour
+4.1 Routes
+Implement at least:
+GET / – redirect to /cases.
+GET /cases – list all cases with status.
+GET /cases/new – simple form to create new Case:
+name, country, sector.
+POST /cases – create Case (status IN_REVIEW) and empty CaseDocuments, then redirect to detail.
+GET /cases/{case_id} – main Case detail dashboard:
+show basic case info & status,
+show links/forms for each stage:
+edit raw texts (Need, Sector, Benchmarks, Ops/Fleet, Financial, Sustainability),
+buttons to “Run Agents” / “Generate Concept Note”,
+show current entities (tables).
+POST /cases/{case_id}/update_docs – update CaseDocuments from form textareas.
+POST /cases/{case_id}/run_agents – pipeline that:
+reads CaseDocuments,
+runs Sector, Gap, KPI, Financial, Sustainability agents,
+saves resulting entities,
+regenerates Concept Note.
+GET /cases/{case_id}/concept_note – display Concept Note in HTML (rendered from Markdown).
+POST /cases/{case_id}/decision – form with radio “Approve / Reject”:
+Approve → set status APPROVED.
+Reject → set status ARCHIVED.
+4.2 Templates
+Keep UI simple but clear:
+cases_list.html:
+table of cases with columns: name, country, sector, status, “View”.
+case_detail.html:
+show summary at top,
+show a form with textareas for each raw doc field,
+buttons:
+“Save Inputs”
+“Run Agents & Generate Concept Note”
+“View Concept Note”
+below, show tables:
+Sector profile (if exists),
+Gap analysis items,
+Baseline KPIs,
+Financial options (with total_score sorted descending),
+Sustainability summary.
+simple decision form at bottom (Approve/Reject).
+concept_note.html:
+render the Markdown content as HTML (use a Python Markdown library or a simple conversion).
+5. Behaviour Rules
+Automation only runs after a Case exists. Don’t auto-create cases from text.
+This is happy-path only:
+assume textual inputs are reasonable;
+no need for advanced validation.
+Keep all “business logic” in the agents and stub service modules, not in the route handlers.
+Keep code readable and modular; add comments explaining where real API/LLM calls would eventually plug in.
+That’s all. Build the full project as described, ensure uvicorn main:app --reload can run it in Replit, and that I can:
+Create a case,
+Paste some sample texts,
+Click “Run Agents & Generate Concept Note”,
+See the parsed tables and generated Concept Note,
+Approve or Archive the case.
+total_score = 0.6 * repayment_score + 0.4 * rate_score
+{
+    "project_name": "...",
+    "country": "...",
+    "problem_summary": "...",
+    "requested_amount_usd": 50000000.0
+}
