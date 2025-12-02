@@ -2,6 +2,15 @@
 
 {% block title %}{{ case.name }} - EBRD Concept Review Tool{% endblock %}
 
+{# Macro to display values with fallback for 0/None/blank #}
+{% macro display_val(v, unit="", prefix="", allow_zero=false) -%}
+  {% if v is not none and (allow_zero or v != 0) %}
+    {{ prefix }}{% if v is number and v >= 1000 %}{{ "{:,.0f}".format(v) }}{% else %}{{ v }}{% endif %}{% if unit %} {{ unit }}{% endif %}
+  {% else %}
+    —
+  {% endif %}
+{%- endmacro %}
+
 {% block content %}
 <div class="page-header">
     <div>
@@ -116,7 +125,7 @@
                         <span class="step-number">Step {{ step.step }}</span>
                         <span class="step-title">{{ step.title }}</span>
                     </div>
-                    <p class="step-description">{{ step.description }}</p>
+                    <p class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</p>
                 </div>
                 {% endfor %}
             </div>
@@ -127,14 +136,14 @@
         <div class="card">
             <h3>Sector Profile</h3>
             <table class="data-table compact">
-                <tr><th>Total Fleet</th><td>{{ sector_profile.fleet_total or 'N/A' }} buses</td></tr>
-                <tr><th>Diesel Buses</th><td>{{ sector_profile.fleet_diesel or 'N/A' }}</td></tr>
-                <tr><th>Hybrid Buses</th><td>{{ sector_profile.fleet_hybrid or 'N/A' }}</td></tr>
-                <tr><th>Electric Buses</th><td>{{ sector_profile.fleet_electric or 'N/A' }}</td></tr>
-                <tr><th>Depots</th><td>{{ sector_profile.depots or 'N/A' }}</td></tr>
-                <tr><th>Daily Ridership</th><td>{{ "{:,}".format(sector_profile.daily_ridership) if sector_profile.daily_ridership else 'N/A' }}</td></tr>
-                <tr><th>Annual OPEX</th><td>${{ "{:,.0f}".format(sector_profile.annual_opex_usd) if sector_profile.annual_opex_usd else 'N/A' }}</td></tr>
-                <tr><th>Annual CO2</th><td>{{ "{:,.0f}".format(sector_profile.annual_co2_tons) if sector_profile.annual_co2_tons else 'N/A' }} tons</td></tr>
+                <tr><th>Total Fleet</th><td>{{ display_val(sector_profile.fleet_total, "buses") }}</td></tr>
+                <tr><th>Diesel Buses</th><td>{{ display_val(sector_profile.fleet_diesel) }}</td></tr>
+                <tr><th>Hybrid Buses</th><td>{{ display_val(sector_profile.fleet_hybrid) }}</td></tr>
+                <tr><th>Electric Buses</th><td>{{ display_val(sector_profile.fleet_electric, allow_zero=true) }}</td></tr>
+                <tr><th>Depots</th><td>{{ display_val(sector_profile.depots) }}</td></tr>
+                <tr><th>Daily Ridership</th><td>{{ display_val(sector_profile.daily_ridership, "passengers/day") }}</td></tr>
+                <tr><th>Annual OPEX</th><td>{{ display_val(sector_profile.annual_opex_usd, prefix="$") }}</td></tr>
+                <tr><th>Annual CO2</th><td>{{ display_val(sector_profile.annual_co2_tons, "tons/year") }}</td></tr>
             </table>
             {% if sector_profile.notes %}
             <p class="notes"><strong>Notes:</strong> {{ sector_profile.notes }}</p>
@@ -239,16 +248,16 @@
             <table class="data-table compact">
                 <tr>
                     <th>E&S Category</th>
-                    <td><span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span></td>
+                    <td>{% if sustainability.category %}<span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span>{% else %}—{% endif %}</td>
                 </tr>
-                <tr><th>CO2 Reduction</th><td>{{ "{:,.0f}".format(sustainability.co2_reduction_tons) if sustainability.co2_reduction_tons else 'N/A' }} tons/year</td></tr>
-                <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or 'N/A' }}</td></tr>
+                <tr><th>CO2 Reduction</th><td>{{ display_val(sustainability.co2_reduction_tons, "tons/year") }}</td></tr>
+                <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or '—' }}</td></tr>
             </table>
             <div class="sustainability-details">
-                <p><strong>Accessibility:</strong> {{ sustainability.accessibility_notes or 'N/A' }}</p>
-                <p><strong>Policy Alignment:</strong> {{ sustainability.policy_alignment_notes or 'N/A' }}</p>
-                <p><strong>Key Risks:</strong> {{ sustainability.key_risks or 'N/A' }}</p>
-                <p><strong>Mitigations:</strong> {{ sustainability.mitigations or 'N/A' }}</p>
+                <p><strong>Accessibility:</strong> {{ sustainability.accessibility_notes or '—' }}</p>
+                <p><strong>Policy Alignment:</strong> {{ sustainability.policy_alignment_notes or '—' }}</p>
+                <p><strong>Key Risks:</strong> {{ sustainability.key_risks or '—' }}</p>
+                <p><strong>Mitigations:</strong> {{ sustainability.mitigations or '—' }}</p>
             </div>
         </div>
         {% endif %}
