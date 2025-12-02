@@ -57,47 +57,47 @@ def build_sector_profile(text: str) -> dict:
     ]
     for pattern in fleet_patterns:
         val = extract_number(pattern, text)
-        if val:
+        if val is not None:
             result["fleet_total"] = val
             break
     
     diesel_patterns = [
-        r'([\d,]+)\s*(?:diesel|conventional)\s*(?:buses|bus|vehicles)',
         r'diesel\s*(?:buses|fleet)?\s*:?\s*([\d,]+)',
+        r'([\d,]+)[ \t]+(?:diesel|conventional)\s*(?:buses|bus|vehicles)',
     ]
     for pattern in diesel_patterns:
         val = extract_number(pattern, text)
-        if val:
+        if val is not None:
             result["fleet_diesel"] = val
             break
     
     hybrid_patterns = [
-        r'([\d,]+)\s*hybrid\s*(?:buses|bus|vehicles)',
         r'hybrid\s*(?:buses|fleet)?\s*:?\s*([\d,]+)',
+        r'([\d,]+)[ \t]+hybrid\s*(?:buses|bus|vehicles)',
     ]
     for pattern in hybrid_patterns:
         val = extract_number(pattern, text)
-        if val:
+        if val is not None:
             result["fleet_hybrid"] = val
             break
     
     electric_patterns = [
-        r'([\d,]+)\s*(?:electric|e-bus|EV)\s*(?:buses|bus|vehicles)',
         r'(?:electric|e-bus|EV)\s*(?:buses|fleet)?\s*:?\s*([\d,]+)',
+        r'([\d,]+)[ \t]+(?:electric|e-bus|EV)\s*(?:buses|bus|vehicles)',
     ]
     for pattern in electric_patterns:
         val = extract_number(pattern, text)
-        if val:
+        if val is not None:
             result["fleet_electric"] = val
             break
     
     depot_patterns = [
-        r'([\d,]+)\s*(?:depots?|terminals?|garages?)',
         r'(?:depots?|terminals?|garages?)\s*:?\s*([\d,]+)',
+        r'([\d,]+)[ \t]+(?:depots?|terminals?|garages?)',
     ]
     for pattern in depot_patterns:
         val = extract_number(pattern, text)
-        if val:
+        if val is not None:
             result["depots"] = val
             break
     
@@ -111,7 +111,7 @@ def build_sector_profile(text: str) -> dict:
             val = extract_number(pattern, text, multiplier=1_000_000)
         else:
             val = extract_number(pattern, text)
-        if val:
+        if val is not None:
             result["daily_ridership"] = val
             break
     
@@ -122,7 +122,7 @@ def build_sector_profile(text: str) -> dict:
     ]
     for pattern in opex_patterns:
         val = extract_float(pattern, text, multiplier=1_000_000)
-        if val:
+        if val is not None:
             result["annual_opex_usd"] = val
             break
     
@@ -133,7 +133,7 @@ def build_sector_profile(text: str) -> dict:
     ]
     for pattern in co2_patterns:
         val = extract_float(pattern, text)
-        if val:
+        if val is not None:
             result["annual_co2_tons"] = val
             break
     
