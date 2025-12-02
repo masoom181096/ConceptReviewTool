@@ -1,0 +1,103 @@
+🔧 Replit Prompt – Keep “Reset All Phases” on Case Overview
+You are working on my FastAPI + Jinja2 app EBRD Concept Review Tool.
+I already have:
+A Case Overview page at /cases/{case_id}.
+A “Reset all phases” button on that Case Overview page.
+A backend route that handles this reset, which:
+Resets phase1_completed … phase4_completed flags (and related data),
+But then redirects to /cases/{case_id}/phases/1.
+I want this behaviour changed so that:
+When I click “Reset all phases” on the Case Overview page,
+All phases + derived data are reset as they are today,
+But after reset I stay on the Case Overview page (/cases/{case_id}),
+I do not get redirected to Phase 1.
+Optionally, I’m fine with a full page reload of the Case Overview (simple redirect).
+The button should not navigate me to any phase page unless I explicitly click Start/Proceed to Phase 1.
+Please implement the following changes.
+1. Update the reset route to redirect back to Case Overview
+Find the FastAPI route that resets all phases. It likely looks roughly like this:
+@app.post("/cases/{case_id}/reset")
+async def reset_case_phases(case_id: int):
+    case = db_session.get(Case, case_id)
+    # ... logic to reset phase flags + delete derived records ...
+    db_session.commit()
+    return RedirectResponse(f"/cases/{case_id}/phases/1", status_code=303)
+Change the redirect to point to the Case Overview URL instead of Phase 1:
+from fastapi.responses import RedirectResponse
+@app.post("/cases/{case_id}/reset")
+async def reset_case_phases(case_id: int):
+    case = db_session.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    # Reset phase flags
+    case.phase1_completed = False
+    case.phase2_completed = False
+    case.phase3_completed = False
+    case.phase4_completed = False
+    # If you have any derived tables/records (sector_profile, kpis, financial_options, etc.),
+    # ensure this route still deletes/clears them as it already does.
+    db_session.commit()
+    # ✅ After reset, go back to Case Overview, NOT Phase 1
+    return RedirectResponse(f"/cases/{case_id}", status_code=303)
+The only functional change is the redirect target.
+2. Ensure the Case Overview template’s form/button still posts to the same route
+On the Case Overview page (case_detail.html or similar), you probably have something like:
+<form method="post" action="/cases/{{ case.id }}/reset">
+  <button type="submit" class="btn-secondary">
+    Reset all phases
+  </button>
+</form>
+You don’t need to change this, as long as it still points to /cases/{{ case.id }}/reset.
+After the backend change:
+Clicking Reset all phases will:
+POST to /cases/{id}/reset,
+Reset all flags and derived records,
+Redirect back to /cases/{id} (overview),
+Show updated phase statuses on that page.
+3. (Optional) Show a small “reset successful” toast on Case Overview
+If you want a bit more UX feedback, add a simple flash-like message.
+Backend – set a query param after redirect
+You can append a query parameter to the redirect URL:
+return RedirectResponse(f"/cases/{case_id}?reset=1", status_code=303)
+Frontend – show a toast if reset=1 is present
+In the Case Overview template:
+{% if request.query_params.get('reset') == '1' %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = "All phases have been reset for this case.";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add("visible"), 10);
+    setTimeout(() => {
+      toast.classList.remove("visible");
+      setTimeout(() => toast.remove(), 300);
+    }, 2500);
+  });
+</script>
+{% endif %}
+With CSS (if not already present):
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: #111827;
+  color: #f9fafb;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-size: 0.85rem;
+}
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+4. Behaviour after this change
+Click Reset all phases on Case Overview:
+All phase-completion flags and outputs reset.
+Browser returns to /cases/{id} (same page), optionally with a “reset successful” toast.
+Progress/phase summary will show all phases as “Not started”.
+You only go to Phase 1 when you explicitly click Start/Proceed to Phase 1.
+That satisfies: “I want to stay on the case overview page itself” while keeping the reset functionality intact.
