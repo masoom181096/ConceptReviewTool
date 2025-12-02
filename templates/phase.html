@@ -21,22 +21,6 @@
     <div class="phase-sidebar">
         <!-- Vertical Progress Bar -->
         {{ phase_progress_vertical(case, phase_no) }}
-        
-        <!-- Case Summary Card -->
-        <div class="case-summary-card">
-            <h3>{{ case.name }}</h3>
-            <div class="case-summary-meta">{{ case.country }} | {{ case.sector }}</div>
-            {% set phase_completed = (phase_no == 1 and case.phase1_completed) or (phase_no == 2 and case.phase2_completed) or (phase_no == 3 and case.phase3_completed) or (phase_no == 4 and case.phase4_completed) %}
-            {% if phase_completed %}
-                <span class="status-pill status-completed">Phase {{ phase_no }} Completed</span>
-            {% else %}
-                <span class="status-pill status-pending">In Progress</span>
-            {% endif %}
-            <div class="case-summary-dates">
-                <div><strong>Created:</strong> {{ case.created_at.strftime('%b %d, %Y') if case.created_at else '—' }}</div>
-                <div><strong>Updated:</strong> {{ case.updated_at.strftime('%b %d, %Y') if case.updated_at else '—' }}</div>
-            </div>
-        </div>
     </div>
 
     <!-- Main Content Area -->
