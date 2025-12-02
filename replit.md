@@ -4,7 +4,7 @@
 A web application prototyping EBRD's Concept Review Phase automation for large-institution loan requests. This tool implements a happy-path workflow with a simple internal "agentic" architecture where each "agent" is a Python module/function.
 
 ## Current State
-- **Status**: Fully functional prototype with email-first intake flow
+- **Status**: Fully functional prototype with multi-phase concept review workflow
 - **Stack**: Python + FastAPI + SQLite + Jinja2 templates
 
 ## Project Structure
@@ -39,7 +39,9 @@ templates/              # Jinja2 HTML templates
   case_new.html              # Blank case creation
   case_new_from_intake.html  # Case creation from parsed email
   cases_list.html
-  case_detail.html
+  case_detail.html           # Case overview with phased workflow entry
+  phase.html                 # Multi-phase review screen (all 4 phases)
+  _progress_bar.html         # Progress bar macro for phase tracking
   concept_note.html
   review_concept_note.html   # Review & approve concept note
 
@@ -48,7 +50,11 @@ static/
 ```
 
 ## Data Model
-1. **Case** - Main project entity (name, country, sector, status, agent_thinking_log, selected_financial_option_id)
+1. **Case** - Main project entity with phase tracking:
+   - name, country, sector, status
+   - phase1_completed through phase4_completed (Boolean flags)
+   - phase1_thinking through phase4_thinking (JSON agent reasoning)
+   - selected_financial_option_id
 2. **CaseDocuments** - Raw text inputs for each document type
 3. **SectorProfile** - Parsed fleet and operational metrics
 4. **GapAnalysisItem** - Comparison against international benchmarks
@@ -57,15 +63,16 @@ static/
 7. **SustainabilityProfile** - ESG category and environmental metrics
 8. **ConceptNote** - Generated Markdown document
 
-## Workflow
+## Workflow (4-Phase Sequential)
 1. **Email-First Intake**: Paste client email/MoM on the home page
 2. **Pre-filled Case Creation**: System extracts project name, country from email
 3. **Upload Documents**: Only Sector Profile + Sustainability docs required
-4. **Run Concept Review Agent**: Single button triggers full pipeline
-5. **Review Agent Thinking**: See step-by-step reasoning log
-6. **Review Results**: Sector Profile, Gap Analysis, KPIs, Financial Options
-7. **View Concept Note**: Generated Markdown document
-8. **OPSCOMM Decision**: Approve or reject the case
+4. **Multi-Phase Concept Review**:
+   - **Phase 1 - Sector & KPIs**: Parse sector profile, compare benchmarks, generate KPIs
+   - **Phase 2 - Sustainability**: Assess E&S category, emissions reduction, risk analysis
+   - **Phase 3 - Financial Options**: Generate 3 financing structures with 60/40 scoring
+   - **Phase 4 - Concept Note**: Assemble comprehensive draft document
+5. **Review & Approve**: Select financial option and approve/reject case
 
 ## Financial Scoring (60/40 Rule)
 - **60%**: Repayment capacity (DSCR, FX risk, debt ratios)
@@ -84,17 +91,31 @@ static/
 
 ## Key Features
 - **Email-First Intake**: Start reviews by pasting client communication
-- **Streaming Agent Thinking**: Animated step-by-step reasoning with typing effect
+- **Multi-Phase Workflow**: 4 sequential phases with progress tracking
+- **Visual Progress Bar**: Step-by-step progress indicator across all phases
+- **Per-Phase Agent Thinking**: Each phase shows detailed reasoning steps
 - **Document Upload**: Upload .docx or .txt files (Sector Profile + Sustainability)
-- **Automated Agent Pipeline**: Concept Review Orchestrator runs all agents
 - **Gap Analysis**: Automatic comparison against IEA benchmark cities
 - **Three Financial Options**: Sovereign Loan, Guaranteed City Loan, Blended Co-Financing
 - **Financial Trade-offs Table**: Side-by-side comparison of all options with pros/cons
 - **Markdown Concept Note**: Auto-generated with all structured data
 - **OPSCOMM Decision Workflow**: Approve/Reject cases
+- **Phase Reset**: Reset all phases to re-run the analysis
 - **Local-Runnable**: No external APIs or Replit-specific code
 
 ## Recent Changes (Dec 2024)
+- **Multi-Phase Workflow Implementation**:
+  - Refactored single-shot orchestrator into 4 separate phase functions
+  - Added phase completion flags and thinking logs to Case model
+  - Created new phase routes (GET/POST for phases 1-4) with sequential validation
+  - Built progress bar component and comprehensive phase template
+  - Updated case detail page to link to phased flow
+  - Phase 1: Sector Profile, Benchmarks & KPIs
+  - Phase 2: Sustainability Assessment
+  - Phase 3: Market Data & Financial Options
+  - Phase 4: Concept Note Draft
+  - Reset functionality to re-run all phases
+  - Note: Schema changes require database recreation (rm concept_review.db)
 - Added email-first intake flow with need assessment parsing
 - Simplified document uploads to only Sector Profile + Sustainability
 - Created Concept Review Orchestrator for full agent pipeline
