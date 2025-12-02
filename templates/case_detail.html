@@ -322,4 +322,19 @@
     </div>
 </div>
 
+{% if request.query_params.get('reset') == '1' %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const container = document.createElement("div");
+    container.className = "toast-container";
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.innerHTML = '<span class="toast-icon">&#10003;</span> All phases have been reset.';
+    container.appendChild(toast);
+    document.body.appendChild(container);
+    setTimeout(() => container.remove(), 2800);
+});
+</script>
+{% endif %}
+
 {% endblock %}

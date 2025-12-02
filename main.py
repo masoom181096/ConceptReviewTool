@@ -846,7 +846,7 @@ async def reset_phases(case_id: int, db: Session = Depends(get_db)):
     
     db.commit()
     
-    return RedirectResponse(url=f"/cases/{case_id}/phases/1", status_code=302)
+    return RedirectResponse(url=f"/cases/{case_id}?reset=1", status_code=303)
 
 
 @app.post("/api/cases/{case_id}/phases/{phase_no}/run")
