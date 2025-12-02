@@ -1,0 +1,156 @@
+📦 Prompt for Replit: Add Document Upload & Parsing
+You are an expert full-stack Python/FastAPI developer.
+I already have a working project called “Concept Review Tool” built from an earlier prompt.
+It uses:
+FastAPI + Jinja2
+SQLite + SQLAlchemy
+Case, CaseDocuments, SectorProfile, GapAnalysisItem, BaselineKPI, FinancialOption, SustainabilityProfile, ConceptNote models
+Textareas on the Case detail page to manually type/paste:
+Need Assessment
+Sector Profile
+Benchmark
+Ops/Fleet data
+Financial data
+Sustainability doc
+Agents that read from CaseDocuments and generate structured entities + a Concept Note.
+I want you to extend this existing project to support file uploads for these documents, instead of only manual text input.
+High-level requirements
+Users should be able to upload .docx or .txt files for each document type:
+Need Assessment / Request (email/MoM)
+Sector Profile (government doc)
+International Benchmarks / Gap Analysis source
+Ops/Fleet / Baseline KPI
+Financial data (Bloomberg/SAP notes)
+Sustainability / Project Characteristics
+When a file is uploaded, the backend should:
+Extract its plain text,
+Save that text into the corresponding field in CaseDocuments,
+Optionally remember the original filename for display.
+I still want to keep the textareas as a fallback / for editing.
+If both a file and manual text are provided, file wins (it overwrites the text field).
+The existing agent pipeline (run_agents) should continue to use the text stored in CaseDocuments as before.
+Only the input mechanism changes; agents and schemas can remain largely untouched.
+Step 1 – Dependencies & Utilities
+Update requirements.txt to add support for .docx parsing:
+Add python-docx (aka docx on PyPI).
+Create a new module: utils/document_parsing.py with a function:
+ 
+Implementation details:
+Inspect file.filename (lowercased) or file.content_type.
+If extension .docx:
+Use python-docx (from docx import Document) to read it and join all paragraphs with "\n".
+If extension .txt:
+Use file.file.read().decode("utf-8", errors="ignore").
+If something else (e.g., .pdf), raise a ValueError("Unsupported file type").
+Make sure you reset the file pointer if needed (file.file.seek(0)).
+Step 2 – Extend the data model (optionally)
+If it’s not too intrusive, extend CaseDocuments in models.py with optional filename fields so the UI can show what was uploaded:
+need_assessment_filename (String, nullable)
+sector_profile_filename (String, nullable)
+benchmark_filename (String, nullable)
+ops_fleet_filename (String, nullable)
+financial_data_filename (String, nullable)
+sustainability_filename (String, nullable)
+If migrations are complicated, you can just store the filenames in these new columns without worrying about legacy data; this is a dev prototype.
+Step 3 – API routes for upload
+I want a simple UX:
+On the Case detail page (GET /cases/{case_id}), I should see:
+textareas (as now),
+plus a small form section with <input type="file"> for each document type.
+Implementation details:
+In main.py (or wherever routes are defined), update the route that handles updating documents.
+If you currently have POST /cases/{case_id}/update_docs, extend it to accept files via FastAPI’s UploadFile = File(None).
+Example signature:
+Inside the function:
+Load the existing CaseDocuments for this case.
+For each field:
+If a file was uploaded (not None and filename non-empty):
+Call extract_text_from_upload from utils/document_parsing.py.
+Set the corresponding *_text field to that extracted text.
+Set the corresponding *_filename column (if you added it).
+Else:
+Use the textarea value (need_assessment_text, etc.), updating the text field only if the user changed it.
+Commit the changes and redirect back to the case detail page.
+Make sure this route is still compatible with forms that don’t upload files (only text).
+Step 4 – Update templates (case_detail.html)
+Update templates/case_detail.html to show both textareas and file inputs in a single form.
+Wrap the entire “raw document input” section in one form that posts to /cases/{case_id}/update_docs with enctype="multipart/form-data".
+For each logical document, show:
+A <label> and <textarea> prefilled with the current text from CaseDocuments.
+A file input:
+Repeat similar blocks for:
+sector_profile_*
+benchmark_*
+ops_fleet_*
+financial_data_*
+sustainability_*
+Add a Save button at the bottom of the form:
+Keep the existing button for “Run Agents & Generate Concept Note” as a separate form or button that calls the existing /cases/{case_id}/run_agents route.
+Step 5 – Keep the agent pipeline unchanged
+Do not change the agent modules themselves (need_assessment_agent, sector_profile_agent, gap_analysis_agent, etc.) except if:
+You need to import them somewhere else, or
+You want to add small comments.
+When /cases/{case_id}/run_agents is called, it should continue to:
+Read text from CaseDocuments fields (*_text).
+Build SectorProfile, GapAnalysisItem, BaselineKPI, FinancialOption, SustainabilityProfile.
+Generate the Concept Note and store it in ConceptNote.
+This means once file uploads update the *_text fields, the rest of the pipeline works unchanged.
+Step 6 – Sanity checks
+After implementing:
+I should be able to:
+Create a new Case,
+Go to its detail page,
+Upload the following .docx files:
+Need Assessment (email/MoM)
+Sector Profile
+Benchmark doc
+Ops/Fleet KPI doc
+Financial notes
+Sustainability doc
+Click “Save Inputs”.
+When I reload the case:
+I should see the filenames displayed next to each section.
+The textareas should be filled with extracted plain text.
+When I click “Run Agents & Generate Concept Note”:
+The agents should execute using the stored text.
+I should see updated Sector Profile / Gaps / KPIs / Financial Options / Sustainability on the case page.
+I should see an updated Concept Note.
+Please implement all of this cleanly, with comments where appropriate, and make sure the app still runs with uvicorn main:app --reload.
+<button type="submit">Save Inputs (Text or Files)</button>
+<div class="doc-section">
+  <h3>Need Assessment</h3>
+  {% if case_docs.need_assessment_filename %}
+    <p>Uploaded file: {{ case_docs.need_assessment_filename }}</p>
+  {% endif %}
+  <label>Paste or edit text:</label>
+  <textarea name="need_assessment_text" rows="6">{{ case_docs.need_assessment_text or "" }}</textarea>
+  <label>Or upload .docx/.txt:</label>
+  <input type="file" name="need_assessment_file" accept=".docx,.txt" />
+</div>
+@app.post("/cases/{case_id}/update_docs")
+async def update_case_docs(
+    case_id: int,
+    need_assessment_text: str = Form(""),
+    sector_profile_text: str = Form(""),
+    benchmark_text: str = Form(""),
+    ops_fleet_text: str = Form(""),
+    financial_data_text: str = Form(""),
+    sustainability_text: str = Form(""),
+    need_assessment_file: UploadFile | None = File(None),
+    sector_profile_file: UploadFile | None = File(None),
+    benchmark_file: UploadFile | None = File(None),
+    ops_fleet_file: UploadFile | None = File(None),
+    financial_data_file: UploadFile | None = File(None),
+    sustainability_file: UploadFile | None = File(None),
+):
+from typing import Optional
+from fastapi import UploadFile
+def extract_text_from_upload(file: UploadFile) -> str:
+    """
+    Given an UploadFile (.docx or .txt), return its plain text as a single string.
+    Supported:
+      - .docx using python-docx
+      - .txt using simple decode
+    For unsupported types, raise a ValueError.
+    """
+ 

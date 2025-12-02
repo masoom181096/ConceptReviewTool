@@ -8,7 +8,9 @@ dependencies = [
     "jinja2>=3.1.6",
     "markdown>=3.10",
     "pydantic>=2.12.5",
+    "python-docx>=1.2.0",
     "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.44",
+    "starlette>=0.50.0",
     "uvicorn>=0.38.0",
 ]

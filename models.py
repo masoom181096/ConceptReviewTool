@@ -35,6 +35,12 @@ class CaseDocuments(Base):
     ops_fleet_text = Column(Text, default="")
     financial_data_text = Column(Text, default="")
     sustainability_text = Column(Text, default="")
+    need_assessment_filename = Column(String(255), nullable=True)
+    sector_profile_filename = Column(String(255), nullable=True)
+    benchmark_filename = Column(String(255), nullable=True)
+    ops_fleet_filename = Column(String(255), nullable=True)
+    financial_data_filename = Column(String(255), nullable=True)
+    sustainability_filename = Column(String(255), nullable=True)
     
     case = relationship("Case", back_populates="documents")
 

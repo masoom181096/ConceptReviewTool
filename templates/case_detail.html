@@ -15,47 +15,101 @@
     <div class="main-column">
         <div class="card">
             <h3>Input Documents</h3>
-            <p class="help-text">Paste or enter the raw text for each document type. Save inputs before running agents.</p>
+            <p class="help-text">Upload files (.docx or .txt) or paste/edit text manually. Files take priority over text input.</p>
             
-            <form action="/cases/{{ case.id }}/update_docs" method="post" class="form">
-                <div class="form-group">
-                    <label for="need_assessment_text">Need Assessment (Email/MoM)</label>
+            <form action="/cases/{{ case.id }}/update_docs" method="post" enctype="multipart/form-data" class="form">
+                <div class="doc-section">
+                    <div class="doc-header">
+                        <label for="need_assessment_text">Need Assessment (Email/MoM)</label>
+                        {% if docs.need_assessment_filename %}
+                        <span class="file-badge">Uploaded: {{ docs.need_assessment_filename }}</span>
+                        {% endif %}
+                    </div>
                     <textarea id="need_assessment_text" name="need_assessment_text" rows="4" 
                               placeholder="Paste the need assessment email or minutes of meeting here...">{{ docs.need_assessment_text or '' }}</textarea>
+                    <div class="file-input-row">
+                        <label class="file-label">Or upload .docx/.txt:</label>
+                        <input type="file" name="need_assessment_file" accept=".docx,.txt" class="file-input" />
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="sector_profile_text">Sector Profile Document</label>
+                <div class="doc-section">
+                    <div class="doc-header">
+                        <label for="sector_profile_text">Sector Profile Document</label>
+                        {% if docs.sector_profile_filename %}
+                        <span class="file-badge">Uploaded: {{ docs.sector_profile_filename }}</span>
+                        {% endif %}
+                    </div>
                     <textarea id="sector_profile_text" name="sector_profile_text" rows="4"
                               placeholder="Paste government sector documentation, fleet data, etc...">{{ docs.sector_profile_text or '' }}</textarea>
+                    <div class="file-input-row">
+                        <label class="file-label">Or upload .docx/.txt:</label>
+                        <input type="file" name="sector_profile_file" accept=".docx,.txt" class="file-input" />
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="benchmark_text">International Benchmark Notes</label>
+                <div class="doc-section">
+                    <div class="doc-header">
+                        <label for="benchmark_text">International Benchmark Notes</label>
+                        {% if docs.benchmark_filename %}
+                        <span class="file-badge">Uploaded: {{ docs.benchmark_filename }}</span>
+                        {% endif %}
+                    </div>
                     <textarea id="benchmark_text" name="benchmark_text" rows="4"
                               placeholder="Paste international benchmark data and comparisons...">{{ docs.benchmark_text or '' }}</textarea>
+                    <div class="file-input-row">
+                        <label class="file-label">Or upload .docx/.txt:</label>
+                        <input type="file" name="benchmark_file" accept=".docx,.txt" class="file-input" />
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="ops_fleet_text">Operations/Fleet Data (Baseline KPIs)</label>
+                <div class="doc-section">
+                    <div class="doc-header">
+                        <label for="ops_fleet_text">Operations/Fleet Data (Baseline KPIs)</label>
+                        {% if docs.ops_fleet_filename %}
+                        <span class="file-badge">Uploaded: {{ docs.ops_fleet_filename }}</span>
+                        {% endif %}
+                    </div>
                     <textarea id="ops_fleet_text" name="ops_fleet_text" rows="4"
                               placeholder="Paste operational data, fleet statistics, KPI baselines...">{{ docs.ops_fleet_text or '' }}</textarea>
+                    <div class="file-input-row">
+                        <label class="file-label">Or upload .docx/.txt:</label>
+                        <input type="file" name="ops_fleet_file" accept=".docx,.txt" class="file-input" />
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="financial_data_text">Financial Data (Bloomberg/SAP Notes)</label>
+                <div class="doc-section">
+                    <div class="doc-header">
+                        <label for="financial_data_text">Financial Data (Bloomberg/SAP Notes)</label>
+                        {% if docs.financial_data_filename %}
+                        <span class="file-badge">Uploaded: {{ docs.financial_data_filename }}</span>
+                        {% endif %}
+                    </div>
                     <textarea id="financial_data_text" name="financial_data_text" rows="4"
                               placeholder="Paste financial data notes, loan requirements, amounts...">{{ docs.financial_data_text or '' }}</textarea>
+                    <div class="file-input-row">
+                        <label class="file-label">Or upload .docx/.txt:</label>
+                        <input type="file" name="financial_data_file" accept=".docx,.txt" class="file-input" />
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="sustainability_text">Project Sustainability Document</label>
+                <div class="doc-section">
+                    <div class="doc-header">
+                        <label for="sustainability_text">Project Sustainability Document</label>
+                        {% if docs.sustainability_filename %}
+                        <span class="file-badge">Uploaded: {{ docs.sustainability_filename }}</span>
+                        {% endif %}
+                    </div>
                     <textarea id="sustainability_text" name="sustainability_text" rows="4"
                               placeholder="Paste sustainability/ESG documentation...">{{ docs.sustainability_text or '' }}</textarea>
+                    <div class="file-input-row">
+                        <label class="file-label">Or upload .docx/.txt:</label>
+                        <input type="file" name="sustainability_file" accept=".docx,.txt" class="file-input" />
+                    </div>
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-secondary">Save Inputs</button>
+                    <button type="submit" class="btn btn-secondary">Save Inputs (Text or Files)</button>
                 </div>
             </form>
         </div>

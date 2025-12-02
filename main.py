@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Request, Depends, Form, HTTPException, Response
+from fastapi import FastAPI, Request, Depends, Form, HTTPException, Response, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
+from typing import Optional
 import markdown
 
 from database import engine, get_db, Base
@@ -20,6 +21,7 @@ from agents import (
     build_sustainability_profile,
     generate_concept_note
 )
+from utils.document_parsing import extract_text_from_upload
 
 Base.metadata.create_all(bind=engine)
 
@@ -144,9 +146,15 @@ async def update_documents(
     ops_fleet_text: str = Form(""),
     financial_data_text: str = Form(""),
     sustainability_text: str = Form(""),
+    need_assessment_file: Optional[UploadFile] = File(None),
+    sector_profile_file: Optional[UploadFile] = File(None),
+    benchmark_file: Optional[UploadFile] = File(None),
+    ops_fleet_file: Optional[UploadFile] = File(None),
+    financial_data_file: Optional[UploadFile] = File(None),
+    sustainability_file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    """Update case documents from form."""
+    """Update case documents from form text or uploaded files."""
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -156,12 +164,41 @@ async def update_documents(
         docs = CaseDocuments(case_id=case_id)
         db.add(docs)
     
-    docs.need_assessment_text = need_assessment_text
-    docs.sector_profile_text = sector_profile_text
-    docs.benchmark_text = benchmark_text
-    docs.ops_fleet_text = ops_fleet_text
-    docs.financial_data_text = financial_data_text
-    docs.sustainability_text = sustainability_text
+    if need_assessment_file and need_assessment_file.filename:
+        docs.need_assessment_text = extract_text_from_upload(need_assessment_file)
+        docs.need_assessment_filename = need_assessment_file.filename
+    else:
+        docs.need_assessment_text = need_assessment_text
+    
+    if sector_profile_file and sector_profile_file.filename:
+        docs.sector_profile_text = extract_text_from_upload(sector_profile_file)
+        docs.sector_profile_filename = sector_profile_file.filename
+    else:
+        docs.sector_profile_text = sector_profile_text
+    
+    if benchmark_file and benchmark_file.filename:
+        docs.benchmark_text = extract_text_from_upload(benchmark_file)
+        docs.benchmark_filename = benchmark_file.filename
+    else:
+        docs.benchmark_text = benchmark_text
+    
+    if ops_fleet_file and ops_fleet_file.filename:
+        docs.ops_fleet_text = extract_text_from_upload(ops_fleet_file)
+        docs.ops_fleet_filename = ops_fleet_file.filename
+    else:
+        docs.ops_fleet_text = ops_fleet_text
+    
+    if financial_data_file and financial_data_file.filename:
+        docs.financial_data_text = extract_text_from_upload(financial_data_file)
+        docs.financial_data_filename = financial_data_file.filename
+    else:
+        docs.financial_data_text = financial_data_text
+    
+    if sustainability_file and sustainability_file.filename:
+        docs.sustainability_text = extract_text_from_upload(sustainability_file)
+        docs.sustainability_filename = sustainability_file.filename
+    else:
+        docs.sustainability_text = sustainability_text
     
     db.commit()
     
