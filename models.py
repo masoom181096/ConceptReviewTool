@@ -1,10 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
 
 
 class Case(Base):
+    """
+    Main case entity for EBRD Concept Review.
+    
+    Phase completion flags track progress through the 4-phase agent workflow:
+    - Phase 1: Sector Profile, Benchmarks & KPIs
+    - Phase 2: Sustainability Assessment
+    - Phase 3: Market Data & Financial Options
+    - Phase 4: Concept Note Draft
+    """
     __tablename__ = "cases"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -14,6 +23,16 @@ class Case(Base):
     status = Column(String(20), default="NEW")
     agent_thinking_log = Column(Text, nullable=True)
     selected_financial_option_id = Column(Integer, ForeignKey("financial_options.id"), nullable=True)
+    
+    phase1_completed = Column(Boolean, default=False)
+    phase2_completed = Column(Boolean, default=False)
+    phase3_completed = Column(Boolean, default=False)
+    phase4_completed = Column(Boolean, default=False)
+    phase1_thinking = Column(Text, nullable=True)
+    phase2_thinking = Column(Text, nullable=True)
+    phase3_thinking = Column(Text, nullable=True)
+    phase4_thinking = Column(Text, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

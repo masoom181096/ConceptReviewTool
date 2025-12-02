@@ -1,0 +1,241 @@
+🔧 Replit Prompt – Multi-Phase Agent Flow + Better UI/UX
+I already have the EBRD Concept Review Tool built with:
+FastAPI + Jinja2 + SQLite + SQLAlchemy
+Email-first intake, Sector Profile + Sustainability uploads
+A Case detail screen that currently shows:
+Need Assessment, uploaded docs
+A single “Run Concept Review Agent” button
+One combined Agent Thinking log
+Sector Profile, Gap Analysis, KPIs, Financial Options, Sustainability Profile tables
+A Concept Note generation step and a separate “Review & Approve Concept Note” screen with approval of one financial option.
+This is functionally OK but UX-wise it is flat and monolithic.
+I want you to restructure the agent flow into 4 interactive phases, with better layout and a consistent progress bar across all phase screens.
+New Phases:
+Phase 1: Parse Sector Profile, compare with international benchmarks, create baseline KPIs
+(current Steps 1–3 combined)
+Phase 2: Assess project sustainability using the Sustainability document
+(current Step 5, but moved earlier)
+Phase 3: Retrieve market data and propose financial options
+(current Step 4)
+Phase 4: Generate the Concept Note draft
+(current final step)
+Each phase must:
+Have its own screen, with clear outputs and a “Run Phase” and “Proceed to Next Phase” control.
+Share a consistent progress bar that shows all 4 phases, with completed ones marked, current one highlighted, and upcoming ones greyed.
+Look visually richer (cards, headings, spacing, status badges, etc.), not like a bare HTML dump.
+Please implement the following.
+1. Refactor the orchestration into 4 explicit phases
+In agents/concept_review_orchestrator.py:
+Split the current run_concept_review_for_case into 4 functions (and keep a thin wrapper if you still want full auto):
+def run_phase1_sectors_and_kpis(case, case_docs):
+    """
+    Phase 1:
+    - Parse Sector Profile document
+    - Compare with international benchmarks
+    - Create baseline KPIs
+    Returns:
+      {
+        "sector_profile": ...,
+        "gap_items": [...],
+        "kpis": [...],
+        "thinking_steps": [...],  # Phase-1-specific thinking
+      }
+    """
+def run_phase2_sustainability(case, case_docs):
+    """
+    Phase 2:
+    - Parse Sustainability / Project Characteristics document
+    Returns:
+      {
+        "sustainability_profile": ...,
+        "thinking_steps": [...],
+      }
+    """
+def run_phase3_financial_options(case, case_docs):
+    """
+    Phase 3:
+    - Retrieve stub market data
+    - Generate financial options, scores and trade-offs
+    Returns:
+      {
+        "financial_options": [...],
+        "thinking_steps": [...],
+      }
+    """
+def run_phase4_concept_note(case, case_docs):
+    """
+    Phase 4:
+    - Call the Concept Note agent
+    - Generate concept_note_content
+    Returns:
+      {
+        "concept_note_content": "...",
+        "thinking_steps": [...],
+      }
+    """
+Move the existing logic into these functions:
+Parsing sector profile + applying benchmarks + baselining KPIs → Phase 1.
+Sustainability parsing (from sustainability doc) → Phase 2.
+Market data + financial options + scores → Phase 3.
+Concept note generation → Phase 4.
+Each phase should:
+Persist its results to the database (e.g., SectorProfile, GapAnalysisItem, BaselineKPI, SustainabilityProfile, FinancialOption, ConceptNote).
+Build a phase-specific thinking_steps list (similar to what we have now but scoped to that phase only).
+Return this thinking_steps list so the UI can display it.
+Optionally keep a convenience function:
+def run_all_phases(case, case_docs):
+    # sequentially call phase1..4 and merge thinking_steps if needed
+…but the UI should now drive phases one by one, not call this in one shot.
+2. Track phase completion status on the Case
+In models.py, extend the Case model:
+phase1_completed = Column(Boolean, default=False)
+phase2_completed = Column(Boolean, default=False)
+phase3_completed = Column(Boolean, default=False)
+phase4_completed = Column(Boolean, default=False)
+After each phase function runs successfully, set the corresponding flag to True and update updated_at.
+You can derive the current phase on the fly based on which flags are true.
+3. New routes and screens for each phase
+Create a Phase Review section separate from the main Case detail.
+3.1 Routes
+In main.py (or your router):
+@app.get("/cases/{case_id}/phases/{phase_no}")
+async def view_phase(request: Request, case_id: int, phase_no: int):
+    """
+    Render the phase screen (1..4) for the given case, with:
+    - progress bar
+    - relevant outputs (if already run)
+    - Run Phase button (if not run yet)
+    - Proceed to next/back buttons
+    """
+Resolve phase_no 1–4, load Case, associated docs and existing outputs.
+Select the correct template section (you can use one template with conditional blocks or separate templates _phase1.html, _phase2.html, etc.).
+@app.post("/cases/{case_id}/phases/{phase_no}/run")
+async def run_phase(case_id: int, phase_no: int):
+    """
+    Execute only the requested phase, persist results, and redirect back to the same phase screen.
+    """
+Switch on phase_no:
+1 → run_phase1_sectors_and_kpis
+2 → run_phase2_sustainability
+3 → run_phase3_financial_options
+4 → run_phase4_concept_note
+Save returned entities; set the phaseX_completed flag.
+Save thinking_steps to an AgentRunLog table or attach them temporarily to request.state/template context; simplest is an AgentRunLog per case+phase with JSON or text.
+After running, RedirectResponse to GET /cases/{case_id}/phases/{phase_no}.
+3.2 Entry point from Case detail
+On the Case detail page (/cases/{case_id}), replace the single “Run Concept Review Agent” with:
+A call-to-action button:
+“Start Concept Review (Phase 1 → 4)” → href="/cases/{{ case.id }}/phases/1".
+4. Shared progress bar component
+Create a Jinja macro or snippet (e.g. _progress_bar.html) and include it in all phase templates.
+4.1 Macro
+In templates/_progress_bar.html:
+{% macro phase_progress(case, current_phase) %}
+<div class="phase-progress">
+  <div class="phase-step {{ 'completed' if case.phase1_completed else '' }} {{ 'current' if current_phase == 1 else '' }}">
+    <span class="step-number">1</span>
+    <span class="step-label">Sector & KPIs</span>
+  </div>
+  <div class="phase-step {{ 'completed' if case.phase2_completed else '' }} {{ 'current' if current_phase == 2 else '' }}">
+    <span class="step-number">2</span>
+    <span class="step-label">Sustainability</span>
+  </div>
+  <div class="phase-step {{ 'completed' if case.phase3_completed else '' }} {{ 'current' if current_phase == 3 else '' }}">
+    <span class="step-number">3</span>
+    <span class="step-label">Financial Options</span>
+  </div>
+  <div class="phase-step {{ 'completed' if case.phase4_completed else '' }} {{ 'current' if current_phase == 4 else '' }}">
+    <span class="step-number">4</span>
+    <span class="step-label">Concept Note</span>
+  </div>
+</div>
+{% endmacro %}
+In base.css (or wherever), style it:
+Horizontal bar with 4 segments, each “step” shown as a pill or circle with text.
+.completed → green background, checkmark icon if you want.
+.current → blue highlight.
+Default (upcoming) → grey.
+4.2 Include in phase templates
+In each phase_X.html:
+{% from "_progress_bar.html" import phase_progress %}
+{{ phase_progress(case, current_phase) }}
+where current_phase is 1, 2, 3, or 4 set by the view.
+5. Phase-specific UI/UX and outputs
+Use a consistent design language: cards, headings, two-column layout where appropriate, not plain tables dumped on the page.
+5.1 Phase 1 Screen: Sectors & KPIs
+Template phase1.html (or conditional block in a generic phase.html):
+Title: “Phase 1 – Sector Profile, Benchmarks & KPIs”
+Sections in order, each in a card:
+Inputs Summary
+Show sector profile document name + snippet.
+Clear short text: “The agent will parse the sector profile, compare it with benchmarks (Shenzhen, London, Santiago) and construct baseline KPIs.”
+Agent Thinking for Phase 1
+Show the Phase-1-specific thinking_steps list, styled like a timeline.
+Outputs
+Card: Sector Profile (cleaned table with fleet, depots, ridership, OPEX, CO₂).
+Card: Gap Analysis (table)
+Card: Baseline KPIs (table)
+Buttons at bottom:
+If phase1_completed is False → show “Run Phase 1” button (POST to /cases/{id}/phases/1/run).
+If phase1_completed is True → show a subtle label “Phase 1 completed at [timestamp]”.
+Navigation:
+Left: “Back to Case Overview”
+Right: “Proceed to Phase 2 – Sustainability” (link to /cases/{id}/phases/2) enabled only when phase1_completed is True (otherwise disabled/greyed).
+5.2 Phase 2 Screen: Sustainability
+Similar structure:
+Title: “Phase 2 – Sustainability Assessment”
+Inputs: show sustainability doc file + snippet.
+Agent Thinking: Phase-2 thinking_steps.
+Outputs:
+Sustainability Profile card with:
+E&S category, expected CO₂ reduction, PM2.5 benefits, accessibility, policy alignment, key risks & mitigations.
+Buttons:
+“Run Phase 2” (if not completed).
+“Back to Phase 1” (link).
+“Proceed to Phase 3 – Financial Options” (only enabled if Phase 2 is complete).
+5.3 Phase 3 Screen: Financial Options
+Title: “Phase 3 – Market Data & Financial Options”
+Inputs: short explanation “This phase uses stubbed Bloomberg data + repayment heuristics…”.
+Agent Thinking: Phase-3 thinking_steps (including base 2.6% rate, description of each option and scores).
+Outputs:
+Card with Market Data Snapshot (simple table: EUR_SWAP_10Y, GREEN_BOND_SPREAD_10Y).
+Card with Financial Options table (already available; show principal, tenor, grace, rate, repayment score, rate score, total score, pros/cons).
+Buttons:
+“Run Phase 3” (if not completed).
+“Back to Phase 2”
+“Proceed to Phase 4 – Concept Note” (if completed).
+5.4 Phase 4 Screen: Concept Note Draft
+Title: “Phase 4 – Concept Note Draft”
+Agent Thinking: Phase-4 thinking_steps (how all elements were combined).
+Output:
+Card with Concept Note Preview (render markdown → HTML).
+At bottom, a button “Proceed to Review & Approve Concept Note” linking to the existing /cases/{id}/review screen.
+Buttons:
+“Run Phase 4” (if not completed).
+“Back to Phase 3”
+“Proceed to Review & Approve” enabled only if Phase 4 completed.
+6. Visual polish / avoid “blank” look
+Across all phase templates:
+Wrap major sections in <div class="card"> style containers with:
+drop shadow, rounded corners, padding, defined max-width;
+consistent typography and spacing (e.g., h2 for phase title, h3 for sub-sections).
+Add small status pills (e.g., “Not started”, “In progress”, “Completed”) near the phase titles, deduced from phaseX_completed.
+Use subtle background color for the page (#f5f7fa) and white cards, instead of everything on a blank white canvas.
+You can implement simple CSS in a shared stylesheet (e.g. static/styles.css) with classes:
+.card, .card-header, .card-body
+.status-pill.status-completed, .status-pill.status-pending
+.phase-progress, .phase-step, .phase-step.completed, .phase-step.current
+7. Clean up old single-shot behavior
+Keep the old /api-based streaming “thinking” endpoint only if you still want it, but the primary user path should now be the 4-phase flow.
+Remove or hide the original single “Run Concept Review Agent” button from the Case detail page and replace it with “Open Phased Review” linking to Phase 1.
+8. Sanity checks
+After implementing:
+On a Case, clicking Start Concept Review should take me to Phase 1 with a progress bar (1 highlighted, 2–4 grey).
+Running Phase 1 should:
+Show detailed Phase-1 Agent Thinking, Sector Profile, Gap Analysis, KPIs.
+Mark Phase 1 green in the progress bar; enable “Proceed to Phase 2”.
+Phase 2 should show Sustainability inputs + outputs and its own detailed thinking.
+Phase 3 should show market stub + options, with thinking explaining rates and scores.
+Phase 4 should show the generated Concept Note and a path into the Review & Approve screen.
+At every phase, the page should feel like a structured dashboard (cards, headings, spacing), not a blank/plain layout.
+Please implement these changes cleanly, reusing existing logic where possible, and keep comments in the code explaining that this is a demo multi-phase orchestrated agent flow, not production logic.
