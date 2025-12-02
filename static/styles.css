@@ -1512,8 +1512,485 @@ body {
     animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
+/* =============================================================================
+   NEW UI/UX OVERHAUL STYLES - Phase Layout, Tabs, Toast, Interactive Elements
+   ============================================================================= */
+
+/* Two-Column Phase Layout */
+.phase-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.phase-sidebar {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.phase-main {
+    min-width: 0;
+}
+
+/* Case Summary Card */
+.case-summary-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.25rem;
+}
+
+.case-summary-card h3 {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.case-summary-meta {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+
+.case-summary-dates {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.case-summary-dates div {
+    margin-bottom: 0.25rem;
+}
+
+/* Vertical Progress Bar */
+.phase-progress-vertical {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.phase-step-v {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.2s, transform 0.2s;
+    pointer-events: none;
+}
+
+.phase-step-v.clickable {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.phase-step-v.clickable:hover {
+    background-color: var(--light-bg);
+    transform: translateX(4px);
+}
+
+.step-indicator-v {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #e0e0e0;
+    color: #666;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.phase-step-v.completed .step-indicator-v {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.phase-step-v.current .step-indicator-v {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.2);
+}
+
+.step-content-v {
+    display: flex;
+    flex-direction: column;
+}
+
+.step-title-v {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.phase-step-v.completed .step-title-v {
+    color: var(--success-color);
+}
+
+.phase-step-v.current .step-title-v {
+    color: var(--primary-color);
+}
+
+.step-subtitle-v {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.step-connector-v {
+    width: 3px;
+    height: 20px;
+    background-color: #e0e0e0;
+    margin-left: 1.8rem;
+    border-radius: 2px;
+}
+
+.step-connector-v.completed {
+    background-color: var(--success-color);
+}
+
+/* Phase Tabs */
+.phase-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+}
+
+.tab-button:hover {
+    color: var(--primary-color);
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+}
+
+.tab-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: var(--primary-color);
+    border-radius: 3px 3px 0 0;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* Interactive Financial Options Table */
+.table-clickable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.table-clickable tbody tr:hover {
+    background-color: #e3f2fd !important;
+}
+
+.table-clickable tbody tr.row-selected {
+    background-color: #bbdefb !important;
+    box-shadow: inset 3px 0 0 var(--primary-color);
+}
+
+/* Option Detail Drawer Card */
+.option-detail-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #e8f4f8 100%);
+    border: 2px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
     to {
-        transform: rotate(360deg);
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.option-detail-card h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.option-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.option-detail-item {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.option-detail-item .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.option-detail-item .value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.option-pros-cons-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.option-pros-section, .option-cons-section {
+    padding: 0.75rem;
+    border-radius: 6px;
+}
+
+.option-pros-section {
+    background-color: #e8f5e9;
+    border-left: 3px solid var(--success-color);
+}
+
+.option-cons-section {
+    background-color: #fff3cd;
+    border-left: 3px solid var(--warning-color);
+}
+
+.option-pros-section h5 {
+    color: var(--success-color);
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.option-cons-section h5 {
+    color: #856404;
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.option-pros-section p, .option-cons-section p {
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* KPI Tooltips Enhancement */
+.data-table tbody tr[title] {
+    cursor: help;
+}
+
+.data-table tbody tr[title]:hover {
+    background-color: #e3f2fd !important;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.toast {
+    background-color: #323232;
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards;
+    max-width: 350px;
+}
+
+.toast.toast-success {
+    background-color: var(--success-color);
+}
+
+.toast.toast-error {
+    background-color: var(--danger-color);
+}
+
+.toast-icon {
+    font-size: 1.25rem;
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* Phase Main Card Styling */
+.phase-main-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+}
+
+.phase-main-card .phase-title-section {
+    margin-bottom: 1.5rem;
+}
+
+/* Agent Thinking Tab Enhancements */
+.thinking-container {
+    margin-top: 1rem;
+}
+
+.thinking-empty-state {
+    text-align: center;
+    padding: 2rem;
+    background: var(--light-bg);
+    border-radius: 8px;
+    color: var(--text-muted);
+}
+
+.thinking-empty-state p {
+    margin-bottom: 1rem;
+}
+
+/* Outputs Tab Enhancements */
+.outputs-container .card {
+    margin-bottom: 1.5rem;
+}
+
+.outputs-container .card:last-child {
+    margin-bottom: 0;
+}
+
+/* Back Link Styling */
+.phase-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.phase-back-link:hover {
+    text-decoration: underline;
+}
+
+/* Responsive Layout */
+@media (max-width: 900px) {
+    .phase-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .phase-sidebar {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .phase-progress-vertical {
+        flex: 1;
+        min-width: 250px;
+    }
+    
+    .case-summary-card {
+        flex: 1;
+        min-width: 250px;
+    }
+    
+    .phase-step-v {
+        padding: 0.5rem;
+    }
+    
+    .step-connector-v {
+        height: 15px;
+    }
+    
+    .option-pros-cons-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .tab-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .toast-container {
+        bottom: 1rem;
+        right: 1rem;
+        left: 1rem;
+    }
+    
+    .toast {
+        max-width: none;
     }
 }

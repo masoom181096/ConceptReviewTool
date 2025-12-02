@@ -1,0 +1,279 @@
+Prompt to paste into Replit
+You are working on my FastAPI + Jinja2 app called EBRD Concept Review Tool.
+I already have:
+Phase pages: /cases/{id}/phases/1..4 with templates like phase1.html, phase2.html, etc.
+A shared progress bar partial _progress_bar.html.
+Phase-specific outputs (sector profile, gap analysis, KPIs, financial options, sustainability profile, concept note).
+An API endpoint /api/cases/{id}/phases/{phase}/run that returns thinking_steps, and JS that reveals these steps one by one (fake streaming).
+Functionality is okay, but the UI is still very plain.
+I want you to significantly improve the UX and interactivity, without changing the backend logic.
+1. Introduce a consistent, richer layout for all phase pages
+In base.html (or my main layout), add:
+A top nav bar with app title and a link back to All Cases.
+A max-width container for content (e.g. centered with some margin).
+For each phase template (phase1.html–phase4.html), wrap content in a two-column layout:
+<div class="layout">
+  <aside class="layout-sidebar">
+    <!-- Progress bar + case summary -->
+    {% from "_progress_bar.html" import phase_progress %}
+    {{ phase_progress(case, current_phase) }}
+    <div class="case-summary-card">
+      <h3>{{ case.name }}</h3>
+      <p>{{ case.country }} | {{ case.sector }}</p>
+      <p><span class="status-badge status-{{ case.status|lower }}">{{ case.status }}</span></p>
+      <p class="meta">Created: {{ case.created_at }}<br>Updated: {{ case.updated_at }}</p>
+    </div>
+  </aside>
+  <main class="layout-main">
+    <!-- Phase-specific content goes here -->
+  </main>
+</div>
+Style .layout, .layout-sidebar, .layout-main in the CSS:
+Sidebar fixed width (e.g. 280px), main area flexible.
+On small screens, stack vertically.
+2. Add tabs inside each phase: “Agent Thinking” vs “Outputs”
+In each phase template, instead of dumping everything in one column, create a tabbed interface:
+<div class="phase-tabs">
+  <button class="tab-button active" data-tab="thinking">Agent Thinking</button>
+  <button class="tab-button" data-tab="outputs">Outputs</button>
+</div>
+<div class="tab-panel active" id="tab-thinking">
+  <!-- Agent Thinking section: status + thinking-steps container + Run Phase button -->
+</div>
+<div class="tab-panel" id="tab-outputs">
+  <!-- Tables and cards for this phase (Sector Profile, Gap Analysis, KPIs etc.) -->
+</div>
+Add JS (in a shared script referenced by all phase pages) to switch tabs:
+document.querySelectorAll(".phase-tabs").forEach((tabsEl) => {
+  const buttons = tabsEl.querySelectorAll(".tab-button");
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tabName = btn.getAttribute("data-tab");
+      const root = tabsEl.parentElement; // container for tabs + panels
+      // toggle buttons
+      buttons.forEach(b => b.classList.toggle("active", b === btn));
+      // toggle panels
+      root.querySelectorAll(".tab-panel").forEach(panel => {
+        panel.classList.toggle("active", panel.id === `tab-${tabName}`);
+      });
+    });
+  });
+});
+CSS:
+.phase-tabs {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #e5e7eb;
+  padding: 2px;
+  margin-bottom: 1rem;
+}
+.tab-button {
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #4b5563;
+}
+.tab-button.active {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  color: #111827;
+}
+.tab-panel {
+  display: none;
+}
+.tab-panel.active {
+  display: block;
+}
+This gives each phase a sense of “mode”: how the agent thought vs what it produced.
+3. Make outputs interactive
+3.1 Financial options: clickable rows + detail drawer
+In the Phase 3 template, wrap the financial options table:
+<div class="card">
+  <div class="card-header">
+    <h3>Financial Options (Ranked by Total Score)</h3>
+    <p class="muted">Click an option to see details.</p>
+  </div>
+  <div class="card-body">
+    <table class="table table-clickable" id="financial-options-table">
+      <!-- existing header -->
+      <tbody>
+      {% for opt in financial_options %}
+        {% set label = chr(65 + loop.index0) %}
+        <tr
+          data-option-id="{{ opt.id }}"
+          data-option-json='{
+            "label": "{{ label }}",
+            "name": "{{ opt.name|e }}",
+            "principal": "{{ opt.principal_amount_usd }}",
+            "tenor": "{{ opt.tenor_years }}",
+            "grace": "{{ opt.grace_period_years }}",
+            "rate": "{{ (opt.all_in_rate_bps / 100) | round(2) }}",
+            "repayment_score": "{{ opt.repayment_score | round(1) }}",
+            "rate_score": "{{ opt.rate_score | round(1) }}",
+            "total_score": "{{ opt.total_score | round(1) }}",
+            "pros": "{{ opt.pros|e }}",
+            "cons": "{{ opt.cons|e }}"
+          }'
+        >
+          <td>Option {{ label }}</td>
+          <td>{{ opt.name }}</td>
+          <td>${{ "{:,.0f}".format(opt.principal_amount_usd) }}</td>
+          <td>{{ opt.tenor_years }}y ({{ opt.grace_period_years }}y grace)</td>
+          <td>{{ (opt.all_in_rate_bps / 100) | round(2) }}%</td>
+          <td>{{ opt.total_score | round(1) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="card" id="option-detail-card" style="display:none;">
+  <div class="card-header">
+    <h3 id="option-detail-title"></h3>
+  </div>
+  <div class="card-body" id="option-detail-body"></div>
+</div>
+Add JS in the same shared script:
+const optionsTable = document.getElementById("financial-options-table");
+if (optionsTable) {
+  const detailCard = document.getElementById("option-detail-card");
+  const titleEl = document.getElementById("option-detail-title");
+  const bodyEl = document.getElementById("option-detail-body");
+  optionsTable.addEventListener("click", (e) => {
+    const row = e.target.closest("tr[data-option-json]");
+    if (!row) return;
+    const data = JSON.parse(row.getAttribute("data-option-json"));
+    titleEl.textContent = `Option ${data.label} – ${data.name}`;
+    bodyEl.innerHTML = `
+      <p><strong>Principal:</strong> $${Number(data.principal).toLocaleString()}</p>
+      <p><strong>Tenor / Grace:</strong> ${data.tenor} years / ${data.grace} years</p>
+      <p><strong>All-in Rate:</strong> ${data.rate}%</p>
+      <p><strong>Scores:</strong> Repayment ${data.repayment_score}, Rate ${data.rate_score}, Total ${data.total_score}</p>
+      <p><strong>Benefits:</strong> ${data.pros}</p>
+      <p><strong>Trade-offs:</strong> ${data.cons}</p>
+    `;
+    detailCard.style.display = "block";
+    // highlight selected row
+    optionsTable.querySelectorAll("tr").forEach(tr => tr.classList.remove("row-selected"));
+    row.classList.add("row-selected");
+  });
+}
+CSS:
+.table-clickable tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.table-clickable tbody tr:hover {
+  background: #f3f4f6;
+}
+.row-selected {
+  background: #e0f2fe !important;
+}
+Now Phase 3 feels explorable instead of static.
+3.2 KPIs: hover for explanation
+In Phase 1 output, for each KPI row add a tooltip-like explanation:
+<tr class="kpi-row" title="{{ kpi.description }}">
+  <td>{{ kpi.name }}</td>
+  <td>{{ kpi.baseline_value }} {{ kpi.unit }}</td>
+  <td>{{ kpi.target_value }} {{ kpi.unit }}</td>
+  <td>{{ kpi.category }}</td>
+</tr>
+And CSS:
+.kpi-row:hover {
+  background: #f3f4f6;
+}
+If you want richer tooltips, add a data-description attribute and a small JS hover card, but title is enough for now.
+4. Improve the visual layer (cards, spacing, background)
+In your main CSS file:
+Give the page a subtle background and card styling:
+body {
+  background: #f3f4f6;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111827;
+}
+.card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  margin-bottom: 1rem;
+}
+.card-header {
+  padding: 0.75rem 1rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.card-body {
+  padding: 0.75rem 1rem 1rem;
+}
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.status-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+.status-in_review {
+  background: #e0f2fe;
+  color: #1d4ed8;
+}
+Style the sidebar:
+.layout {
+  display: flex;
+  gap: 1.5rem;
+}
+.layout-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+}
+.layout-main {
+  flex: 1;
+}
+@media (max-width: 900px) {
+  .layout {
+    flex-direction: column;
+  }
+  .layout-sidebar {
+    width: 100%;
+  }
+}
+This alone will make everything feel less “plain corporate HTML”.
+5. Behavioural polish
+Make the progress bar steps clickable for completed phases: clicking a completed phase in the sidebar should navigate to /cases/{id}/phases/{n}.
+After a phase run finishes (in the streaming JS), you can show a subtle toast:
+function showToast(message) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.classList.add("visible"); }, 10);
+  setTimeout(() => {
+    toast.classList.remove("visible");
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+CSS:
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: #111827;
+  color: #f9fafb;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  font-size: 0.85rem;
+}
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+Call showToast("Phase 3 completed. You can now review financial options."); at the end of the phase JS.

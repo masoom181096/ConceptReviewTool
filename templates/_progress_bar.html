@@ -48,3 +48,66 @@
     </div>
 </div>
 {% endmacro %}
+
+{% macro phase_progress_vertical(case, current_phase) %}
+<div class="phase-progress-vertical">
+    <a href="/cases/{{ case.id }}/phases/1" class="phase-step-v {% if case.phase1_completed %}completed clickable{% endif %} {% if current_phase == 1 %}current{% endif %}">
+        <div class="step-indicator-v">
+            {% if case.phase1_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">1</span>
+            {% endif %}
+        </div>
+        <div class="step-content-v">
+            <span class="step-title-v">Sector & KPIs</span>
+            <span class="step-subtitle-v">Phase 1</span>
+        </div>
+    </a>
+    <div class="step-connector-v {% if case.phase1_completed %}completed{% endif %}"></div>
+    
+    <a href="/cases/{{ case.id }}/phases/2" class="phase-step-v {% if case.phase2_completed %}completed clickable{% elif case.phase1_completed %}clickable{% endif %} {% if current_phase == 2 %}current{% endif %}">
+        <div class="step-indicator-v">
+            {% if case.phase2_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">2</span>
+            {% endif %}
+        </div>
+        <div class="step-content-v">
+            <span class="step-title-v">Sustainability</span>
+            <span class="step-subtitle-v">Phase 2</span>
+        </div>
+    </a>
+    <div class="step-connector-v {% if case.phase2_completed %}completed{% endif %}"></div>
+    
+    <a href="/cases/{{ case.id }}/phases/3" class="phase-step-v {% if case.phase3_completed %}completed clickable{% elif case.phase2_completed %}clickable{% endif %} {% if current_phase == 3 %}current{% endif %}">
+        <div class="step-indicator-v">
+            {% if case.phase3_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">3</span>
+            {% endif %}
+        </div>
+        <div class="step-content-v">
+            <span class="step-title-v">Financial Options</span>
+            <span class="step-subtitle-v">Phase 3</span>
+        </div>
+    </a>
+    <div class="step-connector-v {% if case.phase3_completed %}completed{% endif %}"></div>
+    
+    <a href="/cases/{{ case.id }}/phases/4" class="phase-step-v {% if case.phase4_completed %}completed clickable{% elif case.phase3_completed %}clickable{% endif %} {% if current_phase == 4 %}current{% endif %}">
+        <div class="step-indicator-v">
+            {% if case.phase4_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">4</span>
+            {% endif %}
+        </div>
+        <div class="step-content-v">
+            <span class="step-title-v">Concept Note</span>
+            <span class="step-subtitle-v">Phase 4</span>
+        </div>
+    </a>
+</div>
+{% endmacro %}
