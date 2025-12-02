@@ -122,12 +122,13 @@ static/
 - Added Agent Thinking Log with predetermined templated steps
 - Added international benchmarks stub service with IEA data
 - Added README.md with local setup instructions
-- **Streaming-style Agent Thinking UI**: JavaScript fetch-based animation with typing effects
-  - New JSON API endpoint `/api/cases/{case_id}/run_concept_review`
-  - Steps appear one-by-one with fade-in animation (300ms delay)
-  - Text types in character-by-character (15ms per character)
-  - 800ms pause between steps for dramatic effect
-  - CSS animations for blinking cursor during typing
+- **Streaming-style Agent Thinking UI**: JavaScript fetch-based animation
+  - JSON API endpoint `/api/cases/{case_id}/phases/{phase_no}/run` for async phase execution
+  - Returns `{status, phase_completed, thinking_steps}` JSON payload
+  - JS-driven DOM manipulation creates thinking step elements dynamically
+  - Steps appear one-by-one with 1-second delays and CSS fade-in transitions
+  - Status messages show running/complete/error states
+  - Page auto-refreshes after streaming completes to show phase results
 - **Enhanced Concept Note with Trade-offs Table**:
   - Summary comparison table with all 3 financial options
   - Decision Framework section explaining trade-offs narratively
