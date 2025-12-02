@@ -122,11 +122,14 @@ static/
 - Added Agent Thinking Log with predetermined templated steps
 - Added international benchmarks stub service with IEA data
 - Added README.md with local setup instructions
-- **Streaming-style Agent Thinking UI**: JavaScript fetch-based animation
+- **Streaming-style Agent Thinking UI**: JavaScript fetch-based animation with typewriter effect
   - JSON API endpoint `/api/cases/{case_id}/phases/{phase_no}/run` for async phase execution
   - Returns `{status, phase_completed, thinking_steps}` JSON payload
   - JS-driven DOM manipulation creates thinking step elements dynamically
-  - Steps appear one-by-one with 1-second delays and CSS fade-in transitions
+  - Word-by-word typewriter animation (50ms per word) for LLM-like streaming feel
+  - Blinking cursor during typing that disappears when step completes
+  - Steps appear sequentially with 800ms delays and CSS fade-in transitions
+  - `white-space: pre-line` for proper newline handling without HTML injection
   - Status messages show running/complete/error states
   - Page auto-refreshes after streaming completes to show phase results
 - **Enhanced Concept Note with Trade-offs Table**:
