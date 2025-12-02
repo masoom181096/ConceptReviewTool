@@ -94,6 +94,7 @@ static/
 - **Multi-Phase Workflow**: 4 sequential phases with progress tracking
 - **Two-Column Layout**: Sidebar with vertical progress bar + case summary card
 - **Tabbed Interface**: Agent Thinking vs Outputs tabs for cleaner UX
+- **Wizard Navigation Footer**: Always-visible navigation at bottom of phase pages
 - **Interactive Financial Table**: Clickable rows with detail drawer showing pros/cons
 - **Toast Notifications**: Visual feedback on phase completion
 - **Clickable Progress Bar**: Navigate to completed phases directly

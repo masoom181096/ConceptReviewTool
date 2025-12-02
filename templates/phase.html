@@ -41,8 +41,6 @@
 
     <!-- Main Content Area -->
     <div class="phase-main">
-        <a href="/cases/{{ case.id }}" class="phase-back-link">&larr; Back to Case Overview</a>
-        
         <div class="phase-main-card">
             <div class="phase-title-section">
                 <h2>Phase {{ phase_no }} – {{ phase_info[phase_no].title }}</h2>
@@ -132,48 +130,25 @@
                     {% endif %}
                 </div>
                 
-                <!-- Run Phase Action -->
-                <div class="phase-actions">
-                    <div class="nav-buttons">
-                        {% if phase_no > 1 %}
-                            <a href="/cases/{{ case.id }}/phases/{{ phase_no - 1 }}" class="btn btn-secondary">&larr; Back to Phase {{ phase_no - 1 }}</a>
-                        {% else %}
-                            <a href="/cases/{{ case.id }}" class="btn btn-secondary">&larr; Back to Case</a>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="action-buttons">
-                        {% set prev_phase_completed = (phase_no == 1) or (phase_no == 2 and case.phase1_completed) or (phase_no == 3 and case.phase2_completed) or (phase_no == 4 and case.phase3_completed) %}
-                        
-                        {% if not phase_completed and prev_phase_completed %}
-                            <button 
-                                id="run-phase-btn" 
-                                type="button" 
-                                class="btn btn-primary"
-                                data-case-id="{{ case.id }}"
-                                data-phase="{{ phase_no }}"
-                            >
-                                Run Phase {{ phase_no }}
-                            </button>
-                        {% elif not prev_phase_completed %}
-                            <span class="btn btn-disabled">Complete Phase {{ phase_no - 1 }} first</span>
-                        {% endif %}
-                        
-                        {% if phase_no < 4 %}
-                            {% if phase_completed %}
-                                <a href="/cases/{{ case.id }}/phases/{{ phase_no + 1 }}" class="btn btn-success" id="proceed-btn">Proceed to Phase {{ phase_no + 1 }} &rarr;</a>
-                            {% else %}
-                                <span class="btn btn-disabled" id="proceed-btn-disabled">Proceed to Phase {{ phase_no + 1 }} &rarr;</span>
-                            {% endif %}
-                        {% else %}
-                            {% if phase_completed %}
-                                <a href="/cases/{{ case.id }}/review" class="btn btn-success" id="proceed-btn">Proceed to Review & Approve &rarr;</a>
-                            {% else %}
-                                <span class="btn btn-disabled" id="proceed-btn-disabled">Proceed to Review & Approve &rarr;</span>
-                            {% endif %}
-                        {% endif %}
-                    </div>
+                <!-- Run Phase Action (stays in Agent Thinking tab) -->
+                {% set prev_phase_completed = (phase_no == 1) or (phase_no == 2 and case.phase1_completed) or (phase_no == 3 and case.phase2_completed) or (phase_no == 4 and case.phase3_completed) %}
+                {% if not phase_completed and prev_phase_completed %}
+                <div class="run-phase-action">
+                    <button 
+                        id="run-phase-btn" 
+                        type="button" 
+                        class="btn btn-primary btn-large"
+                        data-case-id="{{ case.id }}"
+                        data-phase="{{ phase_no }}"
+                    >
+                        Run Phase {{ phase_no }}
+                    </button>
                 </div>
+                {% elif not prev_phase_completed %}
+                <div class="run-phase-action">
+                    <span class="btn btn-disabled">Complete Phase {{ phase_no - 1 }} first</span>
+                </div>
+                {% endif %}
             </div>
             
             <!-- Outputs Tab -->
@@ -398,6 +373,32 @@
                         <p>No outputs generated yet. Run Phase 4 to generate the concept note.</p>
                     </div>
                     {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Phase Navigation Footer (always visible, outside tabs) -->
+            <div class="phase-footer">
+                <div class="phase-footer-left">
+                    <a href="/cases/{{ case.id }}" class="back-link">&larr; Back to Case Overview</a>
+                </div>
+                <div class="phase-footer-right">
+                    {% if phase_no > 1 %}
+                        <a href="/cases/{{ case.id }}/phases/{{ phase_no - 1 }}" class="btn btn-secondary">&larr; Phase {{ phase_no - 1 }}</a>
+                    {% endif %}
+                    
+                    {% if phase_no < 4 %}
+                        {% if phase_completed %}
+                            <a href="/cases/{{ case.id }}/phases/{{ phase_no + 1 }}" class="btn btn-success" id="proceed-btn">Proceed to Phase {{ phase_no + 1 }} &rarr;</a>
+                        {% else %}
+                            <button type="button" class="btn btn-disabled" id="proceed-btn-disabled" disabled title="Run this phase first">Proceed to Phase {{ phase_no + 1 }} &rarr;</button>
+                        {% endif %}
+                    {% else %}
+                        {% if phase_completed %}
+                            <a href="/cases/{{ case.id }}/review" class="btn btn-success" id="proceed-btn">Review & Approve &rarr;</a>
+                        {% else %}
+                            <button type="button" class="btn btn-disabled" id="proceed-btn-disabled" disabled title="Run this phase first">Review & Approve &rarr;</button>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

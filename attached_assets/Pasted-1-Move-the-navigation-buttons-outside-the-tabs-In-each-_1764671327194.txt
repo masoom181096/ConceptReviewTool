@@ -1,0 +1,137 @@
+1. Move the navigation buttons outside the tabs
+In each phase template (e.g. phase1.html, phase2.html…), you likely have something like:
+<div class="phase-tabs">
+  <button class="tab-button active" data-tab="thinking">Agent Thinking</button>
+  <button class="tab-button" data-tab="outputs">Outputs</button>
+</div>
+<div class="tab-panel active" id="tab-thinking">
+  <!-- thinking content -->
+  <!-- Run Phase + Proceed to Phase 2 buttons currently here -->
+</div>
+<div class="tab-panel" id="tab-outputs">
+  <!-- outputs content -->
+</div>
+And your “Proceed to Phase 2” button is probably inside tab-thinking.
+Change it to this structure:
+<div class="phase-tabs">
+  <button class="tab-button active" data-tab="thinking">Agent Thinking</button>
+  <button class="tab-button" data-tab="outputs">Outputs</button>
+</div>
+<div class="tab-panel active" id="tab-thinking">
+  <!-- thinking content ONLY (status + steps + run button) -->
+</div>
+<div class="tab-panel" id="tab-outputs">
+  <!-- outputs content ONLY (tables/cards) -->
+</div>
+<!-- 🔽 NEW: shared footer that’s always visible, regardless of tab -->
+<div class="phase-footer">
+  <div class="phase-footer-left">
+    <a href="/cases/{{ case.id }}">Back to Case Overview</a>
+  </div>
+  <div class="phase-footer-right">
+    {% if current_phase > 1 %}
+      <a href="/cases/{{ case.id }}/phases/{{ current_phase - 1 }}">
+        <button type="button" class="btn-secondary">Back to Phase {{ current_phase - 1 }}</button>
+      </a>
+    {% endif %}
+    {% if current_phase < 4 %}
+      {% if current_phase_completed %}
+        <a href="/cases/{{ case.id }}/phases/{{ current_phase + 1 }}">
+          <button type="button" class="btn-primary">
+            Proceed to Phase {{ current_phase + 1 }}
+          </button>
+        </a>
+      {% else %}
+        <button type="button" class="btn-primary" disabled title="Run this phase before proceeding.">
+          Proceed to Phase {{ current_phase + 1 }}
+        </button>
+      {% endif %}
+    {% else %}
+      <!-- Phase 4: link to Concept Note review instead -->
+      {% if current_phase_completed %}
+        <a href="/cases/{{ case.id }}/review">
+          <button type="button" class="btn-primary">
+            Proceed to Review & Approve Concept Note
+          </button>
+        </a>
+      {% else %}
+        <button type="button" class="btn-primary" disabled title="Run this phase before proceeding.">
+          Proceed to Review & Approve Concept Note
+        </button>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+Key ideas:
+The footer is outside both tab panels, so it shows in both Agent Thinking and Outputs views.
+current_phase_completed should be passed from the view function (True if phaseX_completed for that case is true).
+The next-phase button is disabled until the phase has run, but still visible on both tabs.
+You should repeat this pattern (or include a shared partial) for all four phase templates.
+2. View function changes (minimal)
+In each GET /cases/{case_id}/phases/{phase_no} view, set current_phase_completed:
+@app.get("/cases/{case_id}/phases/{phase_no}")
+async def view_phase(request: Request, case_id: int, phase_no: int):
+    case = db_session.get(Case, case_id)
+    # ...
+    if phase_no == 1:
+        current_phase_completed = case.phase1_completed
+    elif phase_no == 2:
+        current_phase_completed = case.phase2_completed
+    elif phase_no == 3:
+        current_phase_completed = case.phase3_completed
+    else:
+        current_phase_completed = case.phase4_completed
+    return templates.TemplateResponse(
+        "phase1.html" if phase_no == 1 else ...,
+        {
+            "request": request,
+            "case": case,
+            "current_phase": phase_no,
+            "current_phase_completed": current_phase_completed,
+            # plus your other context (outputs, thinking, etc.)
+        }
+    )
+This is what the template uses to decide whether to enable/disable the “Proceed” button.
+3. Add some footer styling so it feels intentional
+In your CSS:
+.phase-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+.phase-footer-left a {
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-decoration: underline;
+}
+.btn-primary,
+.btn-secondary {
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+.btn-primary:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: #e5e7eb;
+  color: #111827;
+}
+Now the navigation feels like a proper wizard footer and not “some random button up there”.
+4. Sanity check your assumption
+You were assuming: “Button exists; why isn’t it visible on the Outputs tab?”
+Reality: it’s scoped to the Thinking panel only. Tabs hide the entire panel, not just the text.
+By lifting navigation into a shared footer, you:
+Avoid duplicating logic across tabs,
+Make sure the wizard controls are always in the same place,
+And make the interface feel more deliberate (which is exactly the “intuitive” feedback your team wants).
