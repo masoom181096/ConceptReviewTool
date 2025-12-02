@@ -92,8 +92,12 @@ static/
 ## Key Features
 - **Email-First Intake**: Start reviews by pasting client communication
 - **Multi-Phase Workflow**: 4 sequential phases with progress tracking
-- **Visual Progress Bar**: Step-by-step progress indicator across all phases
-- **Per-Phase Agent Thinking**: Each phase shows detailed reasoning steps
+- **Two-Column Layout**: Sidebar with vertical progress bar + case summary card
+- **Tabbed Interface**: Agent Thinking vs Outputs tabs for cleaner UX
+- **Interactive Financial Table**: Clickable rows with detail drawer showing pros/cons
+- **Toast Notifications**: Visual feedback on phase completion
+- **Clickable Progress Bar**: Navigate to completed phases directly
+- **Per-Phase Agent Thinking**: Each phase shows detailed reasoning steps with typewriter animation
 - **Document Upload**: Upload .docx or .txt files (Sector Profile + Sustainability)
 - **Gap Analysis**: Automatic comparison against IEA benchmark cities
 - **Three Financial Options**: Sovereign Loan, Guaranteed City Loan, Blended Co-Financing
@@ -101,6 +105,7 @@ static/
 - **Markdown Concept Note**: Auto-generated with all structured data
 - **OPSCOMM Decision Workflow**: Approve/Reject cases
 - **Phase Reset**: Reset all phases to re-run the analysis
+- **Responsive Design**: Mobile-friendly with stacked layout at 900px
 - **Local-Runnable**: No external APIs or Replit-specific code
 
 ## Recent Changes (Dec 2024)
