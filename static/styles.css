@@ -1583,6 +1583,17 @@ body {
     align-items: stretch;
 }
 
+.progress-header {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
 .phase-step-v {
     display: flex;
     align-items: center;

@@ -51,6 +51,7 @@
 
 {% macro phase_progress_vertical(case, current_phase) %}
 <div class="phase-progress-vertical">
+    <h4 class="progress-header">Project Sourcing Lifecycle</h4>
     <a href="/cases/{{ case.id }}/phases/1" class="phase-step-v {% if case.phase1_completed %}completed clickable{% endif %} {% if current_phase == 1 %}current{% endif %}">
         <div class="step-indicator-v">
             {% if case.phase1_completed %}
