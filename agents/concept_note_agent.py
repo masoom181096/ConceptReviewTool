@@ -63,7 +63,8 @@ def _build_executive_summary(case: Dict, need: Dict, options: List[Dict]) -> str
     project_name = case.get('name', 'the proposed project')
     country = case.get('country', 'the country')
     
-    principal = options[0].get('principal_amount_usd', 0) if options else 0
+    principal = options[0].get('principal_amount_usd') if options else 0
+    principal = principal or 0
     principal_str = f"${principal/1e6:.0f} million" if principal > 0 else "amount to be determined"
     
     best_option = max(options, key=lambda x: x.get('total_score', 0)) if options else None
@@ -87,7 +88,7 @@ This project aligns with EBRD's Green Economy Transition mandate and supports th
 def _build_need_assessment(need: Dict) -> str:
     """Build need assessment section."""
     problem = need.get('problem_summary', 'The project addresses critical urban transport infrastructure needs.')
-    amount = need.get('requested_amount_usd', 0)
+    amount = need.get('requested_amount_usd') or 0
     amount_str = f"${amount/1e6:.0f} million" if amount > 0 else "To be determined"
     
     return f"""## 2. Need Assessment
@@ -110,11 +111,12 @@ def _build_sector_profile(profile: Dict) -> str:
     fleet_total = profile.get('fleet_total') or 'N/A'
     fleet_diesel = profile.get('fleet_diesel') or 'N/A'
     fleet_hybrid = profile.get('fleet_hybrid') or 'N/A'
-    fleet_electric = profile.get('fleet_electric') or 'N/A'
+    fleet_electric = profile.get('fleet_electric')
+    fleet_electric = fleet_electric if fleet_electric is not None else 'N/A'
     depots = profile.get('depots') or 'N/A'
     ridership = profile.get('daily_ridership')
     ridership_str = f"{ridership:,}" if ridership else "N/A"
-    opex = profile.get('annual_opex_usd', 0)
+    opex = profile.get('annual_opex_usd') or 0
     opex_str = f"${opex/1e6:.1f}M" if opex and opex > 0 else "N/A"
     co2 = profile.get('annual_co2_tons')
     co2_str = f"{co2:,}" if co2 else "N/A"
@@ -255,7 +257,7 @@ def _build_financial_options(options: List[Dict]) -> str:
         label = chr(ord('A') + idx)
         name = opt.get('name', 'Unknown Instrument')
         instrument = opt.get('instrument_type', 'N/A')
-        principal = opt.get('principal_amount_usd', 0)
+        principal = opt.get('principal_amount_usd') or 0
         principal_str = f"${principal/1e6:.0f}M" if principal > 0 else "N/A"
         tenor = opt.get('tenor_years', 'N/A')
         grace = opt.get('grace_period_years', 'N/A')
