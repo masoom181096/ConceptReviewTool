@@ -385,6 +385,29 @@
     const caseId = runBtn.getAttribute("data-case-id");
     const phaseNo = runBtn.getAttribute("data-phase");
     
+    function typeTextWords(element, fullText, wordDelay) {
+        return new Promise((resolve) => {
+            element.textContent = "";
+            element.style.whiteSpace = "pre-line";
+            const words = fullText.split(" ");
+            let i = 0;
+            function tick() {
+                if (i < words.length) {
+                    element.textContent += (i === 0 ? "" : " ") + words[i];
+                    i++;
+                    setTimeout(tick, wordDelay);
+                } else {
+                    resolve();
+                }
+            }
+            tick();
+        });
+    }
+    
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
     runBtn.addEventListener("click", async () => {
         const thinkingCard = document.querySelector('.thinking-timeline')?.closest('.card') || 
                             createThinkingCard();
@@ -428,64 +451,69 @@
             
             statusEl.textContent = "Agent reasoning...";
             
-            let delay = 0;
-            const delayPerStep = 1000;
+            const delayBeforeStep = 800;
+            const wordDelay = 50;
             
-            steps.forEach((stepObj, idx) => {
+            for (let idx = 0; idx < steps.length; idx++) {
+                const stepObj = steps[idx];
+                
                 const stepDiv = document.createElement("div");
                 stepDiv.classList.add("thinking-step", "thinking-step-streaming");
                 stepDiv.style.opacity = "0";
                 stepDiv.style.transform = "translateY(15px)";
                 
-                const description = (stepObj.description || "").replace(/\n/g, "<br>");
-                
-                stepDiv.innerHTML = `
-                    <div class="step-header">
-                        <span class="step-badge">Step ${stepObj.step || (idx + 1)}</span>
-                        <strong>${stepObj.title || ""}</strong>
-                    </div>
-                    <div class="step-description">${description}</div>
+                const headerDiv = document.createElement("div");
+                headerDiv.classList.add("step-header");
+                headerDiv.innerHTML = `
+                    <span class="step-badge">Step ${stepObj.step || (idx + 1)}</span>
+                    <strong>${stepObj.title || ""}</strong>
                 `;
                 
+                const bodyDiv = document.createElement("div");
+                bodyDiv.classList.add("step-description");
+                bodyDiv.classList.add("typing-active");
+                
+                stepDiv.appendChild(headerDiv);
+                stepDiv.appendChild(bodyDiv);
                 stepsContainer.appendChild(stepDiv);
                 
-                setTimeout(() => {
-                    stepDiv.style.transition = "opacity 0.5s ease-out, transform 0.5s ease-out";
-                    stepDiv.style.opacity = "1";
-                    stepDiv.style.transform = "translateY(0)";
-                    stepDiv.classList.add("thinking-step-visible");
-                }, delay);
+                await sleep(delayBeforeStep);
                 
-                delay += delayPerStep;
-            });
+                stepDiv.style.transition = "opacity 0.5s ease-out, transform 0.5s ease-out";
+                stepDiv.style.opacity = "1";
+                stepDiv.style.transform = "translateY(0)";
+                stepDiv.classList.add("thinking-step-visible");
+                
+                const fullText = stepObj.description || "";
+                await typeTextWords(bodyDiv, fullText, wordDelay);
+                
+                bodyDiv.classList.remove("typing-active");
+                bodyDiv.classList.add("typing-complete");
+            }
             
-            setTimeout(() => {
-                statusEl.textContent = "Phase " + phaseNo + " completed successfully.";
-                statusEl.className = "thinking-status thinking-status-complete";
-                
-                runBtn.style.display = "none";
-                
-                const disabledProceed = document.getElementById("proceed-btn-disabled");
-                if (disabledProceed) {
-                    const nextPhase = parseInt(phaseNo) + 1;
-                    const newBtn = document.createElement("a");
-                    if (nextPhase <= 4) {
-                        newBtn.href = `/cases/${caseId}/phases/${nextPhase}`;
-                        newBtn.textContent = `Proceed to Phase ${nextPhase} →`;
-                    } else {
-                        newBtn.href = `/cases/${caseId}/review`;
-                        newBtn.textContent = "Proceed to Review & Approve →";
-                    }
-                    newBtn.className = "btn btn-success";
-                    newBtn.id = "proceed-btn";
-                    disabledProceed.replaceWith(newBtn);
+            statusEl.textContent = "Phase " + phaseNo + " completed successfully.";
+            statusEl.className = "thinking-status thinking-status-complete";
+            
+            runBtn.style.display = "none";
+            
+            const disabledProceed = document.getElementById("proceed-btn-disabled");
+            if (disabledProceed) {
+                const nextPhase = parseInt(phaseNo) + 1;
+                const newBtn = document.createElement("a");
+                if (nextPhase <= 4) {
+                    newBtn.href = `/cases/${caseId}/phases/${nextPhase}`;
+                    newBtn.textContent = `Proceed to Phase ${nextPhase} →`;
+                } else {
+                    newBtn.href = `/cases/${caseId}/review`;
+                    newBtn.textContent = "Proceed to Review & Approve →";
                 }
-                
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-                
-            }, delay + 500);
+                newBtn.className = "btn btn-success";
+                newBtn.id = "proceed-btn";
+                disabledProceed.replaceWith(newBtn);
+            }
+            
+            await sleep(1500);
+            location.reload();
             
         } catch (err) {
             console.error(err);

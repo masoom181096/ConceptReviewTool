@@ -1468,6 +1468,24 @@ body {
     font-size: 0.9rem;
     color: #374151;
     line-height: 1.6;
+    white-space: pre-line;
+}
+
+.thinking-step-streaming .step-description.typing-active::after {
+    content: '|';
+    display: inline;
+    color: #2563eb;
+    font-weight: bold;
+    animation: cursor-blink 0.7s infinite;
+}
+
+.thinking-step-streaming .step-description.typing-complete::after {
+    display: none;
+}
+
+@keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
 }
 
 .thinking-step-visible {

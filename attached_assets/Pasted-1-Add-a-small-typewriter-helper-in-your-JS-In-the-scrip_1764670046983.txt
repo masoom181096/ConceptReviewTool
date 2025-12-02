@@ -1,0 +1,115 @@
+1. Add a small typewriter helper in your JS
+In the <script> block where you handle /api/cases/{id}/phases/{phase}/run, add this helper before you use it:
+function typeText(element, fullText, charDelay) {
+  element.textContent = ""; // start empty
+  element.style.whiteSpace = "pre-line"; // so \n becomes line breaks
+  let i = 0;
+  function tick() {
+    if (i <= fullText.length) {
+      element.textContent = fullText.slice(0, i);
+      i++;
+      setTimeout(tick, charDelay);
+    }
+  }
+  tick();
+}
+whiteSpace: pre-line lets you keep the description as plain text with \n instead of messing with <br> and broken HTML.
+charDelay controls how fast it “types” (e.g. 15–30 ms per character).
+2. Modify your streaming loop to use the typewriter per step
+You currently have something roughly like this (simplified):
+steps.forEach((stepObj, idx) => {
+  const stepDiv = document.createElement("div");
+  stepDiv.classList.add("thinking-step");
+  stepDiv.style.opacity = "0";
+  stepDiv.innerHTML = `
+    <div class="thinking-step-header">
+      <span class="thinking-step-number">Step ${stepObj.step || (idx + 1)}</span>
+      <span class="thinking-step-title">${stepObj.title || ""}</span>
+    </div>
+    <div class="thinking-step-body">${(stepObj.description || "").replace(/\n/g, "<br>")}</div>
+  `;
+  stepsContainer.appendChild(stepDiv);
+  setTimeout(() => {
+    stepDiv.style.transition = "opacity 0.5s ease-in-out, transform 0.5s ease-in-out";
+    stepDiv.style.opacity = "1";
+    stepDiv.style.transform = "translateY(0)";
+  }, delay);
+  stepDiv.style.transform = "translateY(10px)";
+  delay += delayPerStep;
+});
+You need to change this so:
+You don’t dump the full description as HTML.
+You create the body <div> empty, and call typeText on it after the delay.
+Replace the inner part with something like:
+let delay = 0;
+const delayPerStep = 1000; // delay before each step begins "thinking"
+const charDelay = 20;      // delay between characters while typing
+steps.forEach((stepObj, idx) => {
+  const stepDiv = document.createElement("div");
+  stepDiv.classList.add("thinking-step");
+  stepDiv.style.opacity = "0";
+  stepDiv.style.transform = "translateY(10px)";
+  const headerDiv = document.createElement("div");
+  headerDiv.classList.add("thinking-step-header");
+  headerDiv.innerHTML = `
+    <span class="thinking-step-number">Step ${stepObj.step || (idx + 1)}</span>
+    <span class="thinking-step-title">${stepObj.title || ""}</span>
+  `;
+  const bodyDiv = document.createElement("div");
+  bodyDiv.classList.add("thinking-step-body");
+  stepDiv.appendChild(headerDiv);
+  stepDiv.appendChild(bodyDiv);
+  stepsContainer.appendChild(stepDiv);
+  const fullText = stepObj.description || "";
+  setTimeout(() => {
+    // Fade/slide the whole step in
+    stepDiv.style.transition = "opacity 0.5s ease-in-out, transform 0.5s ease-in-out";
+    stepDiv.style.opacity = "1";
+    stepDiv.style.transform = "translateY(0)";
+    // Start typing the text *after* the step appears
+    typeText(bodyDiv, fullText, charDelay);
+  }, delay);
+  delay += delayPerStep;
+});
+Key changes:
+We no longer use .innerHTML with <br>; instead we pass the raw description string into typeText.
+typeText is responsible for writing character-by-character and respecting \n.
+Each step still appears one by one, but within each step, the body text streams in.
+3. Make sure the CSS supports the effect
+You probably already have something like this, but double-check / add:
+.thinking-step-body {
+  font-size: 0.9rem;
+  color: #374151;
+  /* important for \n -> new line behavior */
+  white-space: pre-line;
+}
+If you set whiteSpace in JS (element.style.whiteSpace = "pre-line"), this is less critical, but having it in CSS is cleaner.
+4. Optional: slightly more “LLM-ish” pacing
+If you want extra realism:
+Use word-based streaming instead of character-based to avoid long waits for big paragraphs:
+function typeTextWords(element, fullText, wordDelay) {
+  element.textContent = "";
+  element.style.whiteSpace = "pre-line";
+  const words = fullText.split(" ");
+  let i = 0;
+  function tick() {
+    if (i < words.length) {
+      element.textContent += (i === 0 ? "" : " ") + words[i];
+      i++;
+      setTimeout(tick, wordDelay);
+    }
+  }
+  tick();
+}
+Then call typeTextWords(bodyDiv, fullText, 80) instead of typeText.
+Character-based feels “code editor”, word-based feels more “LLM”.
+5. Sanity check
+Once you wire this in, the behaviour should be:
+Click Run Phase →
+status changes, steps container clears.
+Step 1 card appears → its title pops in, then the body sentence(s) start typing.
+After ~1 second, Step 2 card slides in → its text types out, and so on.
+If you still see the whole paragraph appear immediately per step, it means:
+Either you still set innerHTML with the full description somewhere, or
+You’re not actually calling typeText on the body <div> that’s visible.
+In that case, send me the current JS block and I’ll surgically rewrite it—but the pattern above is exactly what you need for proper “streaming” agent thinking.
