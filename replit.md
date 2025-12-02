@@ -122,6 +122,21 @@ static/
   - Server-side validation prevents approval without selection
   - Case status transitions: In Review → Approved or Rejected
   - Financial instrument names stored clean (e.g., "Sovereign Loan"); Option A/B/C labels added in presentation layer only
+- **Richer Agent Thinking Steps**:
+  - Multi-line descriptions with bullet points converted to `<br>` tags
+  - Data-aware content referencing actual parsed values (fleet counts, CO2 emissions, ridership, rates, scores)
+  - 800ms pause between steps for readability
+- **MOCK_DEFAULTS for Demo Realism**:
+  - Fallback values when parsing fails (DEMO-ONLY feature)
+  - _fallback() helper only replaces None values, preserves legitimate zeros
+  - Clearly documented as non-production code
+- **Sector Profile Parsing Fixes**:
+  - Regex pattern fix: `[ \t]+` instead of `\s+` to avoid matching across newlines
+  - Zero-value handling: `if val is not None:` instead of `if val:` to preserve 0 values
+- **display_val Jinja Macro**:
+  - Graceful handling of 0/N/A values in templates
+  - allow_zero parameter for fields like fleet_electric where 0 is meaningful
+  - Formats numbers with thousands separators
 
 ## Future Enhancements
 - Replace deterministic agents with LLM integration
