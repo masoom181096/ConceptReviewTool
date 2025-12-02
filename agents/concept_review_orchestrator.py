@@ -188,6 +188,11 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
         "step": 1,
         "title": "Parsing the Sector Profile document",
         "description": "\n".join(step1_lines),
+        "sources": [
+            "Uploaded Sector Profile Document",
+            "Kenya Ministry of Roads and Transport (assumed verification)",
+            "National Transport and Safety Authority (NTSA) statistics (assumed verification)",
+        ],
     })
     
     benchmarks = get_international_benchmarks()
@@ -223,6 +228,11 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
         "step": 2,
         "title": "Comparing with international benchmarks",
         "description": "\n".join(step2_lines),
+        "sources": [
+            "Shenzhen BRT Authority – Electrification Reports (assumed verification)",
+            "Transport for London – Fleet Statistics (assumed verification)",
+            "Santiago Metro Bus – Annual Report (assumed verification)",
+        ],
     })
     
     kpis = build_baseline_kpis("", sector_data)
@@ -245,6 +255,11 @@ def run_phase1_sectors_and_kpis(case: Case, case_docs: CaseDocuments) -> Dict[st
         "step": 3,
         "title": "Baselining KPIs",
         "description": "\n".join(step3_lines),
+        "sources": [
+            "Sector Profile Analysis (Phase 1, Step 1)",
+            "Gap Analysis Results (Phase 1, Step 2)",
+            "EBRD Project Appraisal Framework – KPI Templates (internal)",
+        ],
     })
     
     return {
@@ -311,6 +326,11 @@ def run_phase2_sustainability(case: Case, case_docs: CaseDocuments) -> Dict[str,
         "step": 1,
         "title": "Assessing project sustainability",
         "description": "\n".join(step_lines),
+        "sources": [
+            "Uploaded Sustainability Document",
+            "National Environment Management Authority (NEMA) regulations (assumed verification)",
+            "EBRD Environmental and Social Policy (internal)",
+        ],
     })
     
     return {
@@ -374,6 +394,11 @@ def run_phase3_financial_options(case: Case, case_docs: CaseDocuments) -> Dict[s
         "step": 1,
         "title": "Retrieving market data and proposing financial options",
         "description": "\n".join(step_lines),
+        "sources": [
+            "Stubbed Bloomberg-style data – internal EBRD curves (mock)",
+            "Kenya Central Bank – Macro indicators (assumed verification)",
+            "EBRD Financial Structuring Guidelines (internal)",
+        ],
     })
     
     return {
@@ -427,6 +452,11 @@ def run_phase4_concept_note(case: Case, case_docs: CaseDocuments,
         "step": 1,
         "title": "Generating the Concept Note draft",
         "description": "\n".join(step_lines),
+        "sources": [
+            "Phase 1-3 outputs (Sector Profile, Sustainability, Financial Options)",
+            "EBRD internal concept note template (mock)",
+            "OPSComm submission guidelines (internal)",
+        ],
     })
     
     return {

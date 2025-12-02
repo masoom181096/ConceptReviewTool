@@ -1,0 +1,339 @@
+🔧 Replit Prompt – Interleaved Thinking + Outputs, Collapsible Steps, and Sources
+You are working on my FastAPI + Jinja2 app EBRD Concept Review Tool.
+I already have:
+4 phases: /cases/{id}/phases/1..4, each with a template phase1.html etc.
+A progress bar sidebar and a footer with Back / Proceed buttons.
+An API /api/cases/{id}/phases/{phase}/run that returns:
+thinking_steps: list of {step, title, description} for that phase.
+Frontend JS that:
+Auto-runs the current phase on first load if not completed,
+Streams step cards one by one,
+Streams the description text using a typewriter effect.
+Each phase already has its outputs:
+Phase 1: Sector Profile table, Gap Analysis table, Baseline KPIs table.
+Phase 2: Sustainability Profile table.
+Phase 3: Market Data + Financial Options tables.
+Phase 4: Concept Note preview.
+I want two major UX & reasoning enhancements:
+A. Interleave thinking + outputs, with collapsible reasoning (no separate tabs)
+Current:
+Each phase has two tabs: “Agent Thinking” and “Outputs”.
+Desired:
+Remove the two-tab structure completely.
+For each phase, show a single vertical flow where:
+Step 1 reasoning streams in,
+Then the associated table/card appears immediately beneath it,
+The step’s reasoning block collapses automatically (only header remains visible), but can be expanded by the user.
+Then Step 2 reasoning begins below that, followed by its output, and so on.
+This mapping is important:
+Phase 1
+Step 1: “Parsing Sector Profile” → Sector Profile table
+Step 2: “Comparing with International Benchmarks” → Gap Analysis table
+Step 3: “Baselining KPIs” → Baseline KPI table
+Phase 2
+Step 1: “Assessing sustainability” → Sustainability Profile card/table
+Phase 3
+Step 1 (or multiple steps if you split): “Market data & structuring” →
+Market Data Snapshot card
+Financial Options table
+Phase 4
+Step 1: “Assembling Concept Note” → Concept Note preview
+Please implement the following:
+A.1. Remove phase-level tabs
+In each of phase1.html, phase2.html, phase3.html, phase4.html:
+Remove the “Agent Thinking / Outputs” tab structure.
+Instead, in the main column (layout-main), use:
+<div id="phase-flow">
+  <!-- Step cards and output blocks will live here -->
+  
+  <section id="thinking-outputs-container">
+    <!-- JS will append step cards here -->
+    
+    <!-- Existing tables/cards should be placed here but initially hidden and associated with step numbers via data attributes -->
+    
+    <!-- Example for Phase 1: -->
+    <div class="output-block" data-step="1" id="output-sector-profile" style="display:none;">
+      <!-- Sector Profile table -->
+    </div>
+    <div class="output-block" data-step="2" id="output-gap-analysis" style="display:none;">
+      <!-- Gap Analysis table -->
+    </div>
+    <div class="output-block" data-step="3" id="output-kpis" style="display:none;">
+      <!-- Baseline KPIs table -->
+    </div>
+  </section>
+</div>
+For Phase 2, 3, 4, use similar output-block divs with the appropriate data-step value(s).
+A.2. Change the JS to:
+Create one card per step with header + body + “sources” placeholder (we’ll wire sources in part B).
+Stream the description text into the body (typewriter effect) as it does now.
+After the text for a step finishes streaming:
+Reveal the associated output-block where data-step == stepObj.step (or index if step is missing).
+Collapse the reasoning body: hide the description by default but keep the header visible; add a “Show reasoning / Hide reasoning” toggle.
+Modify the typewriter helper to accept a callback
+Extend your existing typewriter function to call back when it has finished:
+function typeText(element, fullText, charDelay, onComplete) {
+  element.textContent = "";
+  element.style.whiteSpace = "pre-line";
+  let i = 0;
+  function tick() {
+    if (i <= fullText.length) {
+      element.textContent = fullText.slice(0, i);
+      i++;
+      setTimeout(tick, charDelay);
+    } else if (typeof onComplete === "function") {
+      onComplete();
+    }
+  }
+  tick();
+}
+Update the loop over thinking_steps
+In your runPhase() JS, where you build each step card, change it roughly to:
+let delay = 0;
+const delayPerStep = 1000; // delay before each step starts
+const charDelay = 20;      // typing speed
+steps.forEach((stepObj, idx) => {
+  const stepNumber = stepObj.step || (idx + 1);
+  const stepDiv = document.createElement("div");
+  stepDiv.classList.add("thinking-step-card");
+  stepDiv.style.opacity = "0";
+  stepDiv.style.transform = "translateY(10px)";
+  const headerDiv = document.createElement("div");
+  headerDiv.classList.add("thinking-step-header");
+  headerDiv.innerHTML = `
+    <div class="header-main">
+      <span class="thinking-step-number">Step ${stepNumber}</span>
+      <span class="thinking-step-title">${stepObj.title || ""}</span>
+    </div>
+    <button type="button" class="toggle-reasoning-btn" data-expanded="true">Hide reasoning</button>
+  `;
+  const bodyDiv = document.createElement("div");
+  bodyDiv.classList.add("thinking-step-body");
+  // Optional sources container (we'll fill in later in part B)
+  const sourcesDiv = document.createElement("div");
+  sourcesDiv.classList.add("thinking-step-sources");
+  // We'll populate sourcesDiv based on stepObj.sources later
+  stepDiv.appendChild(headerDiv);
+  stepDiv.appendChild(bodyDiv);
+  stepDiv.appendChild(sourcesDiv);
+  stepsContainer.appendChild(stepDiv);
+  // Toggle logic
+  headerDiv.querySelector(".toggle-reasoning-btn").addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    const expanded = btn.getAttribute("data-expanded") === "true";
+    if (expanded) {
+      bodyDiv.style.display = "none";
+      btn.textContent = "Show reasoning";
+    } else {
+      bodyDiv.style.display = "block";
+      btn.textContent = "Hide reasoning";
+    }
+    btn.setAttribute("data-expanded", expanded ? "false" : "true");
+  });
+  const fullText = stepObj.description || "";
+  setTimeout(() => {
+    // reveal step card
+    stepDiv.style.transition = "opacity 0.5s ease-in-out, transform 0.5s ease-in-out";
+    stepDiv.style.opacity = "1";
+    stepDiv.style.transform = "translateY(0)";
+    // type the text and then show output + collapse reasoning
+    typeText(bodyDiv, fullText, charDelay, () => {
+      // 1) reveal output block(s) for this step
+      const outputs = document.querySelectorAll(`.output-block[data-step="${stepNumber}"]`);
+      outputs.forEach(o => {
+        o.style.display = "block";
+      });
+      // 2) collapse reasoning body by default (but header remains)
+      bodyDiv.style.display = "none";
+      const toggleBtn = headerDiv.querySelector(".toggle-reasoning-btn");
+      if (toggleBtn) {
+        toggleBtn.textContent = "Show reasoning";
+        toggleBtn.setAttribute("data-expanded", "false");
+      }
+    });
+  }, delay);
+  delay += delayPerStep;
+});
+CSS additions:
+.thinking-step-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.thinking-step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.toggle-reasoning-btn {
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  color: #2563eb;
+  cursor: pointer;
+}
+.thinking-step-body {
+  font-size: 0.9rem;
+  color: #374151;
+  white-space: pre-line;
+  margin-bottom: 0.4rem;
+}
+.output-block {
+  margin: 0.5rem 0 1.2rem 1.2rem; /* slight indent so it visually links to the step above */
+}
+.thinking-step-sources {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.2rem;
+}
+Result: during a phase run, the user sees:
+Step 1 reasoning typing out, then Sector Profile table appears below, reasoning collapses.
+Step 2 reasoning, then Gap Analysis table, etc.
+All in one flow, no tabs.
+B. Add explicit sources per step and under each table
+Requirement:
+For every step of agent reasoning, show clear sources:
+Even though the data ultimately came from uploaded documents,
+The reasoning should pretend that values were verified against Kenya official websites.
+These sources must appear:
+In small text inside each step card, and
+In small text below each output table/card.
+This is mocked verification — no real HTTP calls. We just need to show deterministic “Source: …” lines.
+B.1. Extend thinking_steps to include sources metadata
+In agents/concept_review_orchestrator.py, for each phase’s run_phaseX function, when you build thinking_steps, add a sources list to each step.
+For example, in Phase 1:
+thinking_steps = []
+# STEP 1 – Sector Profile
+step1_sources = [
+    # uploaded document
+    "Kenya Gov Sample Document – Sector Profile (uploaded)",
+    # mock “official” verification
+    "Kenya Ministry of Roads and Transport – Official website (assumed verification)",
+    "National Transport and Safety Authority (NTSA) – Public transport statistics (assumed verification)",
+]
+thinking_steps.append({
+    "step": 1,
+    "title": "Parsing the Sector Profile document",
+    "description": "\n".join(step1_lines),  # as you already build it
+    "sources": step1_sources,
+})
+# STEP 2 – Benchmarks
+step2_sources = [
+    "IEA Document – Gap Analysis (uploaded)",
+    "International Energy Agency – Urban transport dataset (assumed verification)",
+]
+thinking_steps.append({
+    "step": 2,
+    "title": "Comparing with international benchmarks",
+    "description": "\n".join(step2_lines),
+    "sources": step2_sources,
+})
+# STEP 3 – KPIs
+step3_sources = [
+    "Nairobi City Transport Authority – Baseline KPIs (uploaded)",
+    "Kenya Ministry of Roads and Transport – Policy and performance framework (assumed verification)",
+]
+thinking_steps.append({
+    "step": 3,
+    "title": "Baselining KPIs",
+    "description": "\n".join(step3_lines),
+    "sources": step3_sources,
+})
+Similarly, for other phases:
+Phase 2 (Sustainability): use sources like
+"Project Characteristics – Sustainability Check (uploaded)"
+"National Environment Management Authority (NEMA) – Environmental regulations (assumed verification)"
+Phase 3 (Financial options):
+"Stubbed Bloomberg-style data – internal EBRD curves (mock)"
+"Kenya Central Bank – Macro indicators (assumed verification)"
+Phase 4 (Concept Note):
+Combine references to outputs from phases 1–3 plus:
+"EBRD internal concept note template (mock)"
+Important: In comments, clearly state these “official websites” are assumed/mock and not actually scraped.
+B.2. Render sources inside each step card
+In the JS where we build each step card, we already created sourcesDiv as:
+const sourcesDiv = document.createElement("div");
+sourcesDiv.classList.add("thinking-step-sources");
+Populate it from stepObj.sources if present:
+const sources = stepObj.sources || stepObj.source || [];
+if (Array.isArray(sources) && sources.length > 0) {
+  const label = document.createElement("span");
+  label.textContent = "Sources: ";
+  sourcesDiv.appendChild(label);
+  const listSpan = document.createElement("span");
+  listSpan.textContent = sources.join("; ");
+  sourcesDiv.appendChild(listSpan);
+} else {
+  // Optional: omit if you don't want empty text
+  // sourcesDiv.textContent = "Sources: internal uploaded documents and assumed official websites.";
+}
+This will show at the bottom of each step card, e.g.:
+Sources: Kenya Gov Sample Document – Sector Profile (uploaded); Kenya Ministry of Roads and Transport – Official website (assumed verification); NTSA – Public transport statistics (assumed verification)
+B.3. Show sources under each output table
+In each phase template, under each output-block, add a small “Sources” line using the same lists you defined in Python.
+To avoid duplicating strings, pass these sources from the backend as dedicated context variables.
+For example, in Phase 1 view_phase for phase_no == 1, after calling run_phase1_sectors_and_kpis (or loading results), compute:
+# Example: reusing the same source lists used in thinking_steps for clarity
+sector_profile_sources = [
+    "Kenya Gov Sample Document – Sector Profile (uploaded)",
+    "Kenya Ministry of Roads and Transport – Official website (assumed verification)",
+    "NTSA – Public transport statistics (assumed verification)",
+]
+gap_analysis_sources = [
+    "IEA Document – Gap Analysis (uploaded)",
+    "International Energy Agency – Urban transport dataset (assumed verification)",
+]
+kpi_sources = [
+    "Nairobi City Transport Authority – Baseline KPIs (uploaded)",
+    "Kenya Ministry of Roads and Transport – Policy and performance framework (assumed verification)",
+]
+context.update({
+    "sector_profile_sources": sector_profile_sources,
+    "gap_analysis_sources": gap_analysis_sources,
+    "kpi_sources": kpi_sources,
+})
+Then in the output-block HTML:
+<div class="output-block" data-step="1" id="output-sector-profile" style="display:none;">
+  <!-- Sector Profile table here -->
+  <div class="output-sources">
+    <small>Sources: {{ sector_profile_sources | join("; ") }}</small>
+  </div>
+</div>
+<div class="output-block" data-step="2" id="output-gap-analysis" style="display:none;">
+  <!-- Gap Analysis table -->
+  <div class="output-sources">
+    <small>Sources: {{ gap_analysis_sources | join("; ") }}</small>
+  </div>
+</div>
+<div class="output-block" data-step="3" id="output-kpis" style="display:none;">
+  <!-- Baseline KPIs table -->
+  <div class="output-sources">
+    <small>Sources: {{ kpi_sources | join("; ") }}</small>
+  </div>
+</div>
+CSS:
+.output-sources {
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+Do the same pattern for:
+sustainability_sources under Phase 2 output,
+market_data_sources and financial_options_sources under Phase 3 outputs,
+concept_note_sources if you want a small sources block under the Concept Note preview.
+C. Behaviour summary (so you can verify)
+After implementing this prompt:
+No more thinking/outputs tabs per phase.
+When a phase auto-runs or is re-run:
+Step 1 card appears, text types out, shows sources → then the relevant table appears, with sources underneath → reasoning collapses.
+Step 2 card appears below, same pattern → its table appears, etc.
+Each step card has:
+Title, streaming reasoning, a “Show/Hide reasoning” toggle,
+A small “Sources: …” line.
+Each table/card has:
+A small “Sources: …” line underneath, echoing the same source list as the step that produced it.
+“Kenya official websites” are represented as mock verification sources, not actual live calls.
+This should make the UI feel much more like a guided, explainable agent — you see what it did, what it produced, and where it claims the data came from — all in one continuous, interactive view.

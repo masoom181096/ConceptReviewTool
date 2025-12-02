@@ -35,14 +35,9 @@
                 {% endif %}
             </div>
             
-            <!-- Tabbed Interface -->
-            <div class="phase-tabs">
-                <button class="tab-button active" data-tab="thinking">Agent Thinking</button>
-                <button class="tab-button" data-tab="outputs">Outputs</button>
-            </div>
-            
-            <!-- Agent Thinking Tab -->
-            <div class="tab-panel active" id="tab-thinking">
+            <!-- Single Flow Container -->
+            <div id="phase-flow">
+                <!-- Inputs Summary Card -->
                 <div class="card">
                     <h3>Inputs Summary</h3>
                     {% if phase_no == 1 %}
@@ -85,25 +80,250 @@
                     {% endif %}
                 </div>
                 
-                <div class="thinking-container">
-                    <div id="thinking-status" class="thinking-status hidden"></div>
-                    
+                <!-- Thinking Status -->
+                <div id="thinking-status" class="thinking-status hidden"></div>
+                
+                <!-- Thinking + Outputs Container (interleaved) -->
+                <div id="thinking-outputs-container">
                     {% if thinking_steps %}
-                    <div class="card">
-                        <h3>Agent Reasoning</h3>
-                        <div class="thinking-timeline" id="thinking-timeline">
-                            {% for step in thinking_steps %}
-                            <div class="thinking-step typing-complete">
-                                <div class="step-header">
-                                    <span class="step-badge">Step {{ step.step }}</span>
-                                    <strong>{{ step.title }}</strong>
-                                </div>
-                                <div class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</div>
+                    <!-- Show existing completed steps -->
+                    {% for step in thinking_steps %}
+                    <div class="thinking-step-card" data-step="{{ step.step }}">
+                        <div class="thinking-step-header">
+                            <div class="step-header-left">
+                                <span class="step-badge">Step {{ step.step }}</span>
+                                <strong>{{ step.title }}</strong>
                             </div>
+                            <button type="button" class="toggle-reasoning-btn" data-expanded="false">Show reasoning</button>
+                        </div>
+                        <div class="thinking-step-body" style="display: none;">
+                            <div class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</div>
+                        </div>
+                        {% if step.sources %}
+                        <div class="thinking-step-sources">
+                            <span class="sources-label">Sources:</span>
+                            {% for source in step.sources %}
+                            <span class="source-item">{{ source }}{% if not loop.last %}, {% endif %}</span>
                             {% endfor %}
                         </div>
+                        {% endif %}
                     </div>
+                    
+                    <!-- Output block for this step -->
+                    {% if phase_no == 1 %}
+                        {% if step.step == 1 and sector_profile %}
+                        <div class="output-block" data-step="1" id="output-sector-profile">
+                            <div class="card">
+                                <h3>Sector Profile</h3>
+                                <table class="data-table">
+                                    <tr><th>Total Fleet</th><td>{{ display_val(sector_profile.fleet_total, "buses") }}</td></tr>
+                                    <tr><th>Diesel Buses</th><td>{{ display_val(sector_profile.fleet_diesel) }}</td></tr>
+                                    <tr><th>Hybrid Buses</th><td>{{ display_val(sector_profile.fleet_hybrid) }}</td></tr>
+                                    <tr><th>Electric Buses</th><td>{{ display_val(sector_profile.fleet_electric, '', true) }}</td></tr>
+                                    <tr><th>Depots</th><td>{{ display_val(sector_profile.depots) }}</td></tr>
+                                    <tr><th>Daily Ridership</th><td>{{ display_val(sector_profile.daily_ridership, "passengers/day") }}</td></tr>
+                                    <tr><th>Annual OPEX</th><td>{% if sector_profile.annual_opex_usd %}${{ "{:,.0f}".format(sector_profile.annual_opex_usd) }}{% else %}—{% endif %}</td></tr>
+                                    <tr><th>Annual CO2</th><td>{{ display_val(sector_profile.annual_co2_tons, "tons/year") }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if step.step == 2 and gap_items %}
+                        <div class="output-block" data-step="2" id="output-gap-analysis">
+                            <div class="card">
+                                <h3>Gap Analysis</h3>
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Indicator</th>
+                                            <th>{{ case.country }} Value</th>
+                                            <th>Benchmark City</th>
+                                            <th>Benchmark Value</th>
+                                            <th>Gap</th>
+                                            <th>Priority</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for gap in gap_items %}
+                                        <tr>
+                                            <td>{{ gap.indicator }}</td>
+                                            <td>{{ gap.kenya_value or '—' }}</td>
+                                            <td>{{ gap.benchmark_city or '—' }}</td>
+                                            <td>{{ gap.benchmark_value or '—' }}</td>
+                                            <td>{{ gap.gap_delta or '—' }}</td>
+                                            <td><span class="priority-badge priority-{{ gap.comparability|lower }}">{{ gap.comparability }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if step.step == 3 and kpis %}
+                        <div class="output-block" data-step="3" id="output-kpis">
+                            <div class="card">
+                                <h3>Baseline KPIs</h3>
+                                <table class="data-table" id="kpi-table">
+                                    <thead>
+                                        <tr>
+                                            <th>KPI Name</th>
+                                            <th>Baseline</th>
+                                            <th>Target</th>
+                                            <th>Unit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for kpi in kpis %}
+                                        <tr title="{{ kpi.notes or 'Key Performance Indicator: ' + kpi.name }}">
+                                            <td>{{ kpi.name }}</td>
+                                            <td>{{ kpi.baseline_value or '—' }}</td>
+                                            <td>{{ kpi.target_value or '—' }}</td>
+                                            <td>{{ kpi.unit or '—' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% elif phase_no == 2 %}
+                        {% if step.step == 1 and sustainability %}
+                        <div class="output-block" data-step="1" id="output-sustainability">
+                            <div class="card">
+                                <h3>Sustainability Profile</h3>
+                                <table class="data-table">
+                                    <tr>
+                                        <th>E&S Category</th>
+                                        <td>
+                                            {% if sustainability.category %}
+                                                <span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span>
+                                            {% else %}—{% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr><th>CO2 Reduction</th><td>{{ display_val(sustainability.co2_reduction_tons, "tons/year") }}</td></tr>
+                                    <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or '—' }}</td></tr>
+                                </table>
+                                <div class="sustainability-details">
+                                    <p><strong>Accessibility:</strong> {{ sustainability.accessibility_notes or '—' }}</p>
+                                    <p><strong>Policy Alignment:</strong> {{ sustainability.policy_alignment_notes or '—' }}</p>
+                                    <p><strong>Key Risks:</strong> {{ sustainability.key_risks or '—' }}</p>
+                                    <p><strong>Mitigations:</strong> {{ sustainability.mitigations or '—' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% elif phase_no == 3 %}
+                        {% if step.step == 1 %}
+                        {% if market_data %}
+                        <div class="output-block" data-step="1" id="output-market-data">
+                            <div class="card">
+                                <h3>Market Data Snapshot</h3>
+                                <table class="data-table compact">
+                                    <tr><th>EUR 10Y Swap</th><td>{{ market_data.eur_swap_10y_pct }}%</td></tr>
+                                    <tr><th>Green Bond Spread (10Y)</th><td>{{ market_data.green_bond_spread_10y_pct }}%</td></tr>
+                                    <tr><th>All-in Green Rate</th><td>{{ market_data.all_in_green_rate_pct }}%</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if financial_options %}
+                        <div class="output-block output-block-combined" data-step="1" id="output-financial-options">
+                            <div class="card">
+                                <h3>Financial Options</h3>
+                                <p class="input-description">Click on a row to view detailed information about each financing option.</p>
+                                <table class="data-table financial-options-table table-clickable" id="financial-options-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Option</th>
+                                            <th>Structure</th>
+                                            <th>Tenor/Grace</th>
+                                            <th>Rate</th>
+                                            <th>Repayment Score</th>
+                                            <th>Rate Score</th>
+                                            <th>Total Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for opt in financial_options %}
+                                        <tr data-option-json='{{ {"name": opt.name, "principal": opt.principal_amount_usd, "tenor": opt.tenor_years, "grace": opt.grace_period_years, "rate": (opt.all_in_rate_bps / 100)|round(2) if opt.all_in_rate_bps else null, "repayment_score": opt.repayment_score|round(1) if opt.repayment_score else null, "rate_score": opt.rate_score|round(1) if opt.rate_score else null, "total_score": opt.total_score|round(1) if opt.total_score else null, "pros": opt.pros, "cons": opt.cons}|tojson }}'>
+                                            <td><strong>Option {{ loop.index | string | replace('1', 'A') | replace('2', 'B') | replace('3', 'C') }}</strong></td>
+                                            <td>{{ opt.name }}</td>
+                                            <td>{{ opt.tenor_years or '—' }}y / {{ opt.grace_period_years or '—' }}y</td>
+                                            <td>{% if opt.all_in_rate_bps %}{{ (opt.all_in_rate_bps / 100)|round(2) }}%{% else %}—{% endif %}</td>
+                                            <td>{{ opt.repayment_score|round(1) if opt.repayment_score else '—' }}</td>
+                                            <td>{{ opt.rate_score|round(1) if opt.rate_score else '—' }}</td>
+                                            <td><strong>{{ opt.total_score|round(1) if opt.total_score else '—' }}</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                
+                                <!-- Option Detail Drawer -->
+                                <div id="option-detail-drawer" class="option-detail-card hidden">
+                                    <h4 id="option-detail-title">Option Details</h4>
+                                    <div class="option-detail-grid">
+                                        <div class="option-detail-item">
+                                            <div class="label">Principal Amount</div>
+                                            <div class="value" id="detail-principal">—</div>
+                                        </div>
+                                        <div class="option-detail-item">
+                                            <div class="label">Tenor</div>
+                                            <div class="value" id="detail-tenor">—</div>
+                                        </div>
+                                        <div class="option-detail-item">
+                                            <div class="label">Grace Period</div>
+                                            <div class="value" id="detail-grace">—</div>
+                                        </div>
+                                        <div class="option-detail-item">
+                                            <div class="label">Interest Rate</div>
+                                            <div class="value" id="detail-rate">—</div>
+                                        </div>
+                                        <div class="option-detail-item">
+                                            <div class="label">Repayment Score</div>
+                                            <div class="value" id="detail-repayment">—</div>
+                                        </div>
+                                        <div class="option-detail-item">
+                                            <div class="label">Rate Score</div>
+                                            <div class="value" id="detail-rate-score">—</div>
+                                        </div>
+                                        <div class="option-detail-item">
+                                            <div class="label">Total Score</div>
+                                            <div class="value" id="detail-total">—</div>
+                                        </div>
+                                    </div>
+                                    <div class="option-pros-cons-grid">
+                                        <div class="option-pros-section">
+                                            <h5>Benefits</h5>
+                                            <p id="detail-pros">—</p>
+                                        </div>
+                                        <div class="option-cons-section">
+                                            <h5>Trade-offs</h5>
+                                            <p id="detail-cons">—</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    {% elif phase_no == 4 %}
+                        {% if step.step == 1 and concept_note_html %}
+                        <div class="output-block" data-step="1" id="output-concept-note">
+                            <div class="card concept-note-preview">
+                                <h3>Concept Note Preview</h3>
+                                <div class="concept-note-content">
+                                    {{ concept_note_html|safe }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    {% endfor %}
                     {% else %}
+                    <!-- Empty state when no thinking steps yet -->
                     <div class="thinking-empty-state" id="thinking-empty">
                         <p>No agent reasoning recorded yet.</p>
                         {% set prev_phase_completed = (phase_no == 1) or (phase_no == 2 and case.phase1_completed) or (phase_no == 3 and case.phase2_completed) or (phase_no == 4 and case.phase3_completed) %}
@@ -114,7 +334,50 @@
                     {% endif %}
                 </div>
                 
-                <!-- Run Phase Action (stays in Agent Thinking tab) -->
+                <!-- Hidden Output Blocks for Dynamic Reveal (used when phase runs) -->
+                {% if phase_no == 1 %}
+                <div class="output-block hidden-output" data-step="1" id="dynamic-output-sector-profile" style="display:none;">
+                    <div class="card">
+                        <h3>Sector Profile</h3>
+                        <div class="dynamic-output-content">Loading...</div>
+                    </div>
+                </div>
+                <div class="output-block hidden-output" data-step="2" id="dynamic-output-gap-analysis" style="display:none;">
+                    <div class="card">
+                        <h3>Gap Analysis</h3>
+                        <div class="dynamic-output-content">Loading...</div>
+                    </div>
+                </div>
+                <div class="output-block hidden-output" data-step="3" id="dynamic-output-kpis" style="display:none;">
+                    <div class="card">
+                        <h3>Baseline KPIs</h3>
+                        <div class="dynamic-output-content">Loading...</div>
+                    </div>
+                </div>
+                {% elif phase_no == 2 %}
+                <div class="output-block hidden-output" data-step="1" id="dynamic-output-sustainability" style="display:none;">
+                    <div class="card">
+                        <h3>Sustainability Profile</h3>
+                        <div class="dynamic-output-content">Loading...</div>
+                    </div>
+                </div>
+                {% elif phase_no == 3 %}
+                <div class="output-block hidden-output" data-step="1" id="dynamic-output-market-financial" style="display:none;">
+                    <div class="card">
+                        <h3>Market Data & Financial Options</h3>
+                        <div class="dynamic-output-content">Loading...</div>
+                    </div>
+                </div>
+                {% elif phase_no == 4 %}
+                <div class="output-block hidden-output" data-step="1" id="dynamic-output-concept-note" style="display:none;">
+                    <div class="card">
+                        <h3>Concept Note Preview</h3>
+                        <div class="dynamic-output-content">Loading...</div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Run Phase Action -->
                 {% set prev_phase_completed = (phase_no == 1) or (phase_no == 2 and case.phase1_completed) or (phase_no == 3 and case.phase2_completed) or (phase_no == 4 and case.phase3_completed) %}
                 {% if prev_phase_completed %}
                 <div class="run-phase-action">
@@ -140,233 +403,7 @@
                 {% endif %}
             </div>
             
-            <!-- Outputs Tab -->
-            <div class="tab-panel" id="tab-outputs">
-                <div class="outputs-container">
-                    {% if phase_no == 1 %}
-                    <!-- PHASE 1: Sector Profile, Gap Analysis & KPIs -->
-                    {% if sector_profile %}
-                    <div class="card">
-                        <h3>Sector Profile</h3>
-                        <table class="data-table">
-                            <tr><th>Total Fleet</th><td>{{ display_val(sector_profile.fleet_total, "buses") }}</td></tr>
-                            <tr><th>Diesel Buses</th><td>{{ display_val(sector_profile.fleet_diesel) }}</td></tr>
-                            <tr><th>Hybrid Buses</th><td>{{ display_val(sector_profile.fleet_hybrid) }}</td></tr>
-                            <tr><th>Electric Buses</th><td>{{ display_val(sector_profile.fleet_electric, '', true) }}</td></tr>
-                            <tr><th>Depots</th><td>{{ display_val(sector_profile.depots) }}</td></tr>
-                            <tr><th>Daily Ridership</th><td>{{ display_val(sector_profile.daily_ridership, "passengers/day") }}</td></tr>
-                            <tr><th>Annual OPEX</th><td>{% if sector_profile.annual_opex_usd %}${{ "{:,.0f}".format(sector_profile.annual_opex_usd) }}{% else %}—{% endif %}</td></tr>
-                            <tr><th>Annual CO2</th><td>{{ display_val(sector_profile.annual_co2_tons, "tons/year") }}</td></tr>
-                        </table>
-                    </div>
-                    {% endif %}
-                    
-                    {% if gap_items %}
-                    <div class="card">
-                        <h3>Gap Analysis</h3>
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Indicator</th>
-                                    <th>{{ case.country }} Value</th>
-                                    <th>Benchmark City</th>
-                                    <th>Benchmark Value</th>
-                                    <th>Gap</th>
-                                    <th>Priority</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for gap in gap_items %}
-                                <tr>
-                                    <td>{{ gap.indicator }}</td>
-                                    <td>{{ gap.kenya_value or '—' }}</td>
-                                    <td>{{ gap.benchmark_city or '—' }}</td>
-                                    <td>{{ gap.benchmark_value or '—' }}</td>
-                                    <td>{{ gap.gap_delta or '—' }}</td>
-                                    <td><span class="priority-badge priority-{{ gap.comparability|lower }}">{{ gap.comparability }}</span></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% endif %}
-                    
-                    {% if kpis %}
-                    <div class="card">
-                        <h3>Baseline KPIs</h3>
-                        <table class="data-table" id="kpi-table">
-                            <thead>
-                                <tr>
-                                    <th>KPI Name</th>
-                                    <th>Baseline</th>
-                                    <th>Target</th>
-                                    <th>Unit</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for kpi in kpis %}
-                                <tr title="{{ kpi.notes or 'Key Performance Indicator: ' + kpi.name }}">
-                                    <td>{{ kpi.name }}</td>
-                                    <td>{{ kpi.baseline_value or '—' }}</td>
-                                    <td>{{ kpi.target_value or '—' }}</td>
-                                    <td>{{ kpi.unit or '—' }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% endif %}
-                    
-                    {% if not sector_profile and not gap_items and not kpis %}
-                    <div class="thinking-empty-state">
-                        <p>No outputs generated yet. Run Phase 1 to generate sector analysis.</p>
-                    </div>
-                    {% endif %}
-                    
-                    {% elif phase_no == 2 %}
-                    <!-- PHASE 2: Sustainability Assessment -->
-                    {% if sustainability %}
-                    <div class="card">
-                        <h3>Sustainability Profile</h3>
-                        <table class="data-table">
-                            <tr>
-                                <th>E&S Category</th>
-                                <td>
-                                    {% if sustainability.category %}
-                                        <span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span>
-                                    {% else %}—{% endif %}
-                                </td>
-                            </tr>
-                            <tr><th>CO2 Reduction</th><td>{{ display_val(sustainability.co2_reduction_tons, "tons/year") }}</td></tr>
-                            <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or '—' }}</td></tr>
-                        </table>
-                        <div class="sustainability-details">
-                            <p><strong>Accessibility:</strong> {{ sustainability.accessibility_notes or '—' }}</p>
-                            <p><strong>Policy Alignment:</strong> {{ sustainability.policy_alignment_notes or '—' }}</p>
-                            <p><strong>Key Risks:</strong> {{ sustainability.key_risks or '—' }}</p>
-                            <p><strong>Mitigations:</strong> {{ sustainability.mitigations or '—' }}</p>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="thinking-empty-state">
-                        <p>No outputs generated yet. Run Phase 2 to generate sustainability assessment.</p>
-                    </div>
-                    {% endif %}
-                    
-                    {% elif phase_no == 3 %}
-                    <!-- PHASE 3: Market Data & Financial Options -->
-                    {% if market_data %}
-                    <div class="card">
-                        <h3>Market Data Snapshot</h3>
-                        <table class="data-table compact">
-                            <tr><th>EUR 10Y Swap</th><td>{{ market_data.eur_swap_10y_pct }}%</td></tr>
-                            <tr><th>Green Bond Spread (10Y)</th><td>{{ market_data.green_bond_spread_10y_pct }}%</td></tr>
-                            <tr><th>All-in Green Rate</th><td>{{ market_data.all_in_green_rate_pct }}%</td></tr>
-                        </table>
-                    </div>
-                    {% endif %}
-                    
-                    {% if financial_options %}
-                    <div class="card">
-                        <h3>Financial Options</h3>
-                        <p class="input-description">Click on a row to view detailed information about each financing option.</p>
-                        <table class="data-table financial-options-table table-clickable" id="financial-options-table">
-                            <thead>
-                                <tr>
-                                    <th>Option</th>
-                                    <th>Structure</th>
-                                    <th>Tenor/Grace</th>
-                                    <th>Rate</th>
-                                    <th>Repayment Score</th>
-                                    <th>Rate Score</th>
-                                    <th>Total Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for opt in financial_options %}
-                                <tr data-option-json='{{ {"name": opt.name, "principal": opt.principal_amount_usd, "tenor": opt.tenor_years, "grace": opt.grace_period_years, "rate": (opt.all_in_rate_bps / 100)|round(2) if opt.all_in_rate_bps else null, "repayment_score": opt.repayment_score|round(1) if opt.repayment_score else null, "rate_score": opt.rate_score|round(1) if opt.rate_score else null, "total_score": opt.total_score|round(1) if opt.total_score else null, "pros": opt.pros, "cons": opt.cons}|tojson }}'>
-                                    <td><strong>Option {{ loop.index | string | replace('1', 'A') | replace('2', 'B') | replace('3', 'C') }}</strong></td>
-                                    <td>{{ opt.name }}</td>
-                                    <td>{{ opt.tenor_years or '—' }}y / {{ opt.grace_period_years or '—' }}y</td>
-                                    <td>{% if opt.all_in_rate_bps %}{{ (opt.all_in_rate_bps / 100)|round(2) }}%{% else %}—{% endif %}</td>
-                                    <td>{{ opt.repayment_score|round(1) if opt.repayment_score else '—' }}</td>
-                                    <td>{{ opt.rate_score|round(1) if opt.rate_score else '—' }}</td>
-                                    <td><strong>{{ opt.total_score|round(1) if opt.total_score else '—' }}</strong></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        
-                        <!-- Option Detail Drawer -->
-                        <div id="option-detail-drawer" class="option-detail-card hidden">
-                            <h4 id="option-detail-title">Option Details</h4>
-                            <div class="option-detail-grid">
-                                <div class="option-detail-item">
-                                    <div class="label">Principal Amount</div>
-                                    <div class="value" id="detail-principal">—</div>
-                                </div>
-                                <div class="option-detail-item">
-                                    <div class="label">Tenor</div>
-                                    <div class="value" id="detail-tenor">—</div>
-                                </div>
-                                <div class="option-detail-item">
-                                    <div class="label">Grace Period</div>
-                                    <div class="value" id="detail-grace">—</div>
-                                </div>
-                                <div class="option-detail-item">
-                                    <div class="label">Interest Rate</div>
-                                    <div class="value" id="detail-rate">—</div>
-                                </div>
-                                <div class="option-detail-item">
-                                    <div class="label">Repayment Score</div>
-                                    <div class="value" id="detail-repayment">—</div>
-                                </div>
-                                <div class="option-detail-item">
-                                    <div class="label">Rate Score</div>
-                                    <div class="value" id="detail-rate-score">—</div>
-                                </div>
-                                <div class="option-detail-item">
-                                    <div class="label">Total Score</div>
-                                    <div class="value" id="detail-total">—</div>
-                                </div>
-                            </div>
-                            <div class="option-pros-cons-grid">
-                                <div class="option-pros-section">
-                                    <h5>Benefits</h5>
-                                    <p id="detail-pros">—</p>
-                                </div>
-                                <div class="option-cons-section">
-                                    <h5>Trade-offs</h5>
-                                    <p id="detail-cons">—</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="thinking-empty-state">
-                        <p>No outputs generated yet. Run Phase 3 to generate financial options.</p>
-                    </div>
-                    {% endif %}
-                    
-                    {% elif phase_no == 4 %}
-                    <!-- PHASE 4: Concept Note Draft -->
-                    {% if concept_note_html %}
-                    <div class="card concept-note-preview">
-                        <h3>Concept Note Preview</h3>
-                        <div class="concept-note-content">
-                            {{ concept_note_html|safe }}
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="thinking-empty-state">
-                        <p>No outputs generated yet. Run Phase 4 to generate the concept note.</p>
-                    </div>
-                    {% endif %}
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Phase Navigation Footer (always visible, outside tabs) -->
+            <!-- Phase Navigation Footer -->
             <div class="phase-footer">
                 <div class="phase-footer-left">
                     <a href="/cases/{{ case.id }}" class="back-link">&larr; Back to Case Overview</a>
@@ -418,21 +455,28 @@
     
     window.showToast = showToast;
     
-    // Tab Switching
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-    
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetTab = btn.getAttribute('data-tab');
-            
-            tabButtons.forEach(b => b.classList.remove('active'));
-            tabPanels.forEach(p => p.classList.remove('active'));
-            
-            btn.classList.add('active');
-            document.getElementById('tab-' + targetTab).classList.add('active');
+    // Toggle reasoning button handlers (for already-loaded steps)
+    function setupToggleHandlers() {
+        document.querySelectorAll('.toggle-reasoning-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const card = this.closest('.thinking-step-card');
+                const body = card.querySelector('.thinking-step-body');
+                const isExpanded = this.getAttribute('data-expanded') === 'true';
+                
+                if (isExpanded) {
+                    body.style.display = 'none';
+                    this.textContent = 'Show reasoning';
+                    this.setAttribute('data-expanded', 'false');
+                } else {
+                    body.style.display = 'block';
+                    this.textContent = 'Hide reasoning';
+                    this.setAttribute('data-expanded', 'true');
+                }
+            });
         });
-    });
+    }
+    
+    setupToggleHandlers();
     
     // Financial Options Interactive Table (Phase 3)
     const optionsTable = document.getElementById('financial-options-table');
@@ -507,26 +551,26 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     
+    function renderSources(sources) {
+        if (!sources || sources.length === 0) return '';
+        const sourceItems = sources.map(s => `<span class="source-item">${s}</span>`).join(', ');
+        return `<div class="thinking-step-sources"><span class="sources-label">Sources:</span> ${sourceItems}</div>`;
+    }
+    
     async function runPhase() {
-        let thinkingCard = document.querySelector('.thinking-timeline')?.closest('.card');
-        let stepsContainer = document.getElementById('thinking-timeline');
+        const container = document.getElementById('thinking-outputs-container');
         
-        if (!thinkingCard) {
-            const emptyState = document.getElementById('thinking-empty');
-            if (emptyState) emptyState.remove();
-            
-            thinkingCard = document.createElement('div');
-            thinkingCard.className = 'card';
-            thinkingCard.innerHTML = '<h3>Agent Reasoning</h3><div class="thinking-timeline" id="thinking-timeline"></div>';
-            document.querySelector('.thinking-container').appendChild(thinkingCard);
-            stepsContainer = thinkingCard.querySelector('.thinking-timeline');
-        }
+        // Clear existing content
+        const emptyState = document.getElementById('thinking-empty');
+        if (emptyState) emptyState.remove();
+        
+        // Remove any existing step cards and outputs for re-run
+        container.querySelectorAll('.thinking-step-card, .output-block:not(.hidden-output)').forEach(el => el.remove());
         
         const statusEl = document.getElementById("thinking-status");
         statusEl.textContent = "Starting phase " + phaseNo + " analysis...";
         statusEl.className = "thinking-status thinking-status-running";
         statusEl.classList.remove('hidden');
-        stepsContainer.innerHTML = "";
         runBtn.disabled = true;
         runBtn.textContent = "Running...";
         
@@ -565,39 +609,100 @@
             
             for (let idx = 0; idx < steps.length; idx++) {
                 const stepObj = steps[idx];
+                const stepNum = stepObj.step || (idx + 1);
                 
-                const stepDiv = document.createElement("div");
-                stepDiv.classList.add("thinking-step", "thinking-step-streaming");
-                stepDiv.style.opacity = "0";
-                stepDiv.style.transform = "translateY(15px)";
+                // Create thinking step card
+                const stepCard = document.createElement("div");
+                stepCard.classList.add("thinking-step-card");
+                stepCard.setAttribute("data-step", stepNum);
+                stepCard.style.opacity = "0";
+                stepCard.style.transform = "translateY(15px)";
                 
+                // Header with toggle button
                 const headerDiv = document.createElement("div");
-                headerDiv.classList.add("step-header");
+                headerDiv.classList.add("thinking-step-header");
                 headerDiv.innerHTML = `
-                    <span class="step-badge">Step ${stepObj.step || (idx + 1)}</span>
-                    <strong>${stepObj.title || ""}</strong>
+                    <div class="step-header-left">
+                        <span class="step-badge">Step ${stepNum}</span>
+                        <strong>${stepObj.title || ""}</strong>
+                    </div>
+                    <button type="button" class="toggle-reasoning-btn" data-expanded="true">Hide reasoning</button>
                 `;
                 
+                // Body (reasoning text)
                 const bodyDiv = document.createElement("div");
-                bodyDiv.classList.add("step-description");
-                bodyDiv.classList.add("typing-active");
+                bodyDiv.classList.add("thinking-step-body");
                 
-                stepDiv.appendChild(headerDiv);
-                stepDiv.appendChild(bodyDiv);
-                stepsContainer.appendChild(stepDiv);
+                const descDiv = document.createElement("div");
+                descDiv.classList.add("step-description", "typing-active");
+                
+                bodyDiv.appendChild(descDiv);
+                
+                stepCard.appendChild(headerDiv);
+                stepCard.appendChild(bodyDiv);
+                container.appendChild(stepCard);
+                
+                // Add toggle handler
+                const toggleBtn = headerDiv.querySelector('.toggle-reasoning-btn');
+                toggleBtn.addEventListener('click', function() {
+                    const isExpanded = this.getAttribute('data-expanded') === 'true';
+                    if (isExpanded) {
+                        bodyDiv.style.display = 'none';
+                        this.textContent = 'Show reasoning';
+                        this.setAttribute('data-expanded', 'false');
+                    } else {
+                        bodyDiv.style.display = 'block';
+                        this.textContent = 'Hide reasoning';
+                        this.setAttribute('data-expanded', 'true');
+                    }
+                });
                 
                 await sleep(delayBeforeStep);
                 
-                stepDiv.style.transition = "opacity 0.5s ease-out, transform 0.5s ease-out";
-                stepDiv.style.opacity = "1";
-                stepDiv.style.transform = "translateY(0)";
-                stepDiv.classList.add("thinking-step-visible");
+                // Animate in
+                stepCard.style.transition = "opacity 0.5s ease-out, transform 0.5s ease-out";
+                stepCard.style.opacity = "1";
+                stepCard.style.transform = "translateY(0)";
                 
+                // Typewriter effect
                 const fullText = stepObj.description || "";
-                await typeTextWords(bodyDiv, fullText, wordDelay);
+                await typeTextWords(descDiv, fullText, wordDelay);
                 
-                bodyDiv.classList.remove("typing-active");
-                bodyDiv.classList.add("typing-complete");
+                descDiv.classList.remove("typing-active");
+                descDiv.classList.add("typing-complete");
+                
+                // Add sources after typing
+                if (stepObj.sources && stepObj.sources.length > 0) {
+                    const sourcesDiv = document.createElement("div");
+                    sourcesDiv.className = "thinking-step-sources";
+                    sourcesDiv.innerHTML = `<span class="sources-label">Sources:</span> ${stepObj.sources.map(s => `<span class="source-item">${s}</span>`).join(', ')}`;
+                    stepCard.appendChild(sourcesDiv);
+                }
+                
+                // Collapse the reasoning body
+                await sleep(500);
+                bodyDiv.style.display = 'none';
+                toggleBtn.textContent = 'Show reasoning';
+                toggleBtn.setAttribute('data-expanded', 'false');
+                
+                // Reveal the associated output block
+                const outputBlock = document.querySelector(`.hidden-output[data-step="${stepNum}"]`);
+                if (outputBlock) {
+                    outputBlock.style.display = 'block';
+                    outputBlock.classList.remove('hidden-output');
+                    outputBlock.style.opacity = '0';
+                    outputBlock.style.transform = 'translateY(10px)';
+                    
+                    // Move it after the step card
+                    container.appendChild(outputBlock);
+                    
+                    await sleep(200);
+                    outputBlock.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
+                    outputBlock.style.opacity = '1';
+                    outputBlock.style.transform = 'translateY(0)';
+                }
+                
+                await sleep(300);
             }
             
             statusEl.textContent = "Phase " + phaseNo + " completed successfully.";
@@ -643,7 +748,6 @@
     
     // Auto-run on page load if phase not completed
     if (autoRun) {
-        // Small delay so the UI renders before we start
         setTimeout(() => {
             runPhase();
         }, 500);

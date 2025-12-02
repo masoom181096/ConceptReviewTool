@@ -2053,3 +2053,204 @@ body {
         justify-content: space-between;
     }
 }
+
+/* =============================================================================
+   INTERLEAVED THINKING + OUTPUTS - Collapsible Steps UX
+   ============================================================================= */
+
+/* Thinking Step Card */
+.thinking-step-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--primary-color);
+    transition: box-shadow 0.2s ease;
+}
+
+.thinking-step-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Step Header - flex layout for title + toggle button */
+.thinking-step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.step-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.step-header-left strong {
+    color: var(--primary-color);
+    font-size: 0.95rem;
+}
+
+/* Toggle Reasoning Button */
+.toggle-reasoning-btn {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.toggle-reasoning-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Thinking Step Body - Collapsible reasoning text */
+.thinking-step-body {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.thinking-step-body .step-description {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    line-height: 1.65;
+    white-space: pre-line;
+}
+
+/* Typing cursor for active typing */
+.thinking-step-body .step-description.typing-active::after {
+    content: '|';
+    display: inline;
+    color: var(--primary-color);
+    font-weight: bold;
+    animation: cursor-blink 0.7s infinite;
+}
+
+.thinking-step-body .step-description.typing-complete::after {
+    display: none;
+}
+
+/* Sources metadata */
+.thinking-step-sources {
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    border-top: 1px dashed var(--border-color);
+}
+
+.sources-label {
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin-right: 0.5rem;
+}
+
+.source-item {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Output Block - indented to visually link to step above */
+.output-block {
+    margin-left: 1rem;
+    margin-bottom: 1.5rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--success-color);
+    animation: slideInUp 0.4s ease-out;
+}
+
+.output-block .card {
+    margin-bottom: 0;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fdf8 100%);
+    border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.output-block .card h3 {
+    color: var(--success-color);
+    border-bottom-color: var(--success-color);
+}
+
+/* Combined output blocks (for Phase 3 with multiple tables) */
+.output-block-combined {
+    border-left-width: 3px;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hidden output blocks (used for dynamic reveal) */
+.hidden-output {
+    display: none;
+}
+
+/* Phase Flow Container */
+#phase-flow {
+    display: flex;
+    flex-direction: column;
+}
+
+#thinking-outputs-container {
+    margin-top: 1rem;
+}
+
+/* Override for financial options table inside output block */
+.output-block .financial-options-table tbody tr {
+    cursor: pointer;
+}
+
+.output-block .financial-options-table tbody tr:hover {
+    background-color: #e8f5e9 !important;
+}
+
+.output-block .financial-options-table tbody tr.row-selected {
+    background-color: #c8e6c9 !important;
+    box-shadow: inset 3px 0 0 var(--success-color);
+}
+
+/* Responsive adjustments for interleaved layout */
+@media (max-width: 768px) {
+    .thinking-step-card {
+        padding: 0.875rem 1rem;
+    }
+    
+    .thinking-step-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .step-header-left {
+        flex-wrap: wrap;
+    }
+    
+    .toggle-reasoning-btn {
+        align-self: flex-end;
+        margin-top: 0.25rem;
+    }
+    
+    .output-block {
+        margin-left: 0.5rem;
+        padding-left: 0.75rem;
+    }
+    
+    .thinking-step-sources {
+        font-size: 0.7rem;
+    }
+}
