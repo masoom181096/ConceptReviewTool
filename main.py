@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, Response, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -233,23 +233,12 @@ async def update_documents(
     return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
 
 
-@app.post("/cases/{case_id}/run_concept_review", response_class=HTMLResponse)
-async def run_concept_review(request: Request, case_id: int, db: Session = Depends(get_db)):
+def _persist_concept_review_results(case_id: int, result: dict, db: Session):
     """
-    Run the full Concept Review Agent pipeline.
-    
-    This orchestrates all agents and produces:
-    - Structured data (SectorProfile, GapAnalysis, KPIs, etc.)
-    - A thinking log showing the agent's reasoning
-    - A Concept Note draft
+    Helper function to persist concept review results to the database.
+    Used by both the HTML and JSON API endpoints.
     """
     case = db.query(Case).filter(Case.id == case_id).first()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-    
-    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
-    if not docs:
-        raise HTTPException(status_code=400, detail="No documents found for this case")
     
     db.query(SectorProfile).filter(SectorProfile.case_id == case_id).delete()
     db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).delete()
@@ -258,8 +247,6 @@ async def run_concept_review(request: Request, case_id: int, db: Session = Depen
     db.query(SustainabilityProfile).filter(SustainabilityProfile.case_id == case_id).delete()
     db.query(ConceptNote).filter(ConceptNote.case_id == case_id).delete()
     db.commit()
-    
-    result = run_concept_review_for_case(case, docs)
     
     sector_profile = SectorProfile(case_id=case_id, **result["sector_profile"])
     db.add(sector_profile)
@@ -285,6 +272,72 @@ async def run_concept_review(request: Request, case_id: int, db: Session = Depen
     case.agent_thinking_log = json.dumps(result["thinking_steps"])
     
     db.commit()
+
+
+@app.post("/api/cases/{case_id}/run_concept_review")
+async def api_run_concept_review(case_id: int, db: Session = Depends(get_db)):
+    """
+    JSON API endpoint: Run the Concept Review orchestrator and return:
+      - thinking_steps (list of dicts with step, title, description)
+      - concept_note_markdown (string)
+      - success (boolean)
+    
+    Also persists all structured entities (SectorProfile, GapAnalysisItem, 
+    BaselineKPI, FinancialOption, SustainabilityProfile, ConceptNote) to the DB.
+    
+    This endpoint is designed for use with JavaScript fetch() to enable
+    streaming-style thinking animation in the frontend.
+    """
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        return JSONResponse(
+            status_code=404,
+            content={"success": False, "error": "Case not found"}
+        )
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    if not docs:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": "No documents found for this case"}
+        )
+    
+    try:
+        result = run_concept_review_for_case(case, docs)
+        _persist_concept_review_results(case_id, result, db)
+        
+        return JSONResponse(content={
+            "success": True,
+            "thinking_steps": result["thinking_steps"],
+            "concept_note_markdown": result["concept_note_content"]
+        })
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+
+@app.post("/cases/{case_id}/run_concept_review", response_class=HTMLResponse)
+async def run_concept_review(request: Request, case_id: int, db: Session = Depends(get_db)):
+    """
+    Run the full Concept Review Agent pipeline (form-based, redirects to case page).
+    
+    This orchestrates all agents and produces:
+    - Structured data (SectorProfile, GapAnalysis, KPIs, etc.)
+    - A thinking log showing the agent's reasoning
+    - A Concept Note draft
+    """
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    if not docs:
+        raise HTTPException(status_code=400, detail="No documents found for this case")
+    
+    result = run_concept_review_for_case(case, docs)
+    _persist_concept_review_results(case_id, result, db)
     
     return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
 

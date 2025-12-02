@@ -743,6 +743,88 @@ body {
     font-weight: 600;
 }
 
+/* Streaming Animation Styles */
+.thinking-step {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.thinking-step.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.thinking-step.error {
+    border-left: 4px solid var(--danger-color);
+    background-color: #fff5f5;
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+    margin-left: 0.5rem;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.hidden {
+    display: none !important;
+}
+
+.success-message {
+    color: var(--success-color);
+    font-weight: 600;
+    padding: 0.75rem;
+    background-color: #d4edda;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Typing cursor effect */
+.step-description::after {
+    content: '';
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background-color: var(--primary-color);
+    animation: blink 0.7s infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+}
+
+.thinking-step.visible .step-description::after {
+    animation: blink 0.7s infinite;
+}
+
+@keyframes blink {
+    0%, 50% {
+        opacity: 1;
+    }
+    51%, 100% {
+        opacity: 0;
+    }
+}
+
+/* Remove cursor after typing is complete */
+.typing-complete .step-description::after {
+    display: none;
+}
+
 @media (max-width: 900px) {
     .case-layout {
         grid-template-columns: 1fr;

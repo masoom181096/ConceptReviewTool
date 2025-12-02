@@ -211,18 +211,49 @@ Progress against targets will be monitored through:
 
 
 def _build_financial_options(options: List[Dict]) -> str:
-    """Build financial options section."""
+    """Build financial options section with comprehensive comparison table and trade-offs."""
     if not options:
-        return """## 6. Financial Options
+        return """## 6. Financing Options and Trade-offs
 
 *Financial analysis pending - requires input data.*"""
     
     sorted_options = sorted(options, key=lambda x: x.get('total_score', 0), reverse=True)
     
-    option_sections = []
-    for i, opt in enumerate(sorted_options):
-        rank = i + 1
-        name = opt.get('name', f'Option {rank}')
+    table_rows = []
+    for idx, opt in enumerate(sorted_options):
+        label = chr(ord('A') + idx)
+        name = opt.get('name', f'Option {label}')
+        tenor = opt.get('tenor_years', 'N/A')
+        grace = opt.get('grace_period_years', 'N/A')
+        rate_bps = opt.get('all_in_rate_bps', 0)
+        rate_pct = f"{rate_bps/100:.2f}%" if rate_bps else "N/A"
+        total = opt.get('total_score', 0)
+        pros = opt.get('pros', 'N/A')
+        cons = opt.get('cons', 'N/A')
+        
+        table_rows.append(
+            f"| {label} | {name} | {tenor}y / {grace}y grace | {rate_pct} | {total:.1f} | {pros} | {cons} |"
+        )
+    
+    summary_table = "\n".join(table_rows)
+    
+    best_label = "A"
+    best_name = sorted_options[0].get('name', 'Option A') if sorted_options else 'Option A'
+    
+    option_narratives = []
+    for idx, opt in enumerate(sorted_options):
+        label = chr(ord('A') + idx)
+        name = opt.get('name', f'Option {label}')
+        pros_short = opt.get('pros', '').split(';')[0] if opt.get('pros') else ''
+        cons_short = opt.get('cons', '').split(';')[0] if opt.get('cons') else ''
+        option_narratives.append(f"- **Option {label}** ({name}): {pros_short}. Trade-off: {cons_short}.")
+    
+    narratives_text = "\n".join(option_narratives)
+    
+    detail_sections = []
+    for idx, opt in enumerate(sorted_options):
+        label = chr(ord('A') + idx)
+        name = opt.get('name', f'Option {label}')
         instrument = opt.get('instrument_type', 'N/A')
         principal = opt.get('principal_amount_usd', 0)
         principal_str = f"${principal/1e6:.0f}M" if principal > 0 else "N/A"
@@ -235,7 +266,7 @@ def _build_financial_options(options: List[Dict]) -> str:
         pros = opt.get('pros', 'N/A')
         cons = opt.get('cons', 'N/A')
         
-        option_sections.append(f"""### 6.{rank} {name}
+        detail_sections.append(f"""### 6.{idx+2} Option {label}: {name}
 
 | Parameter | Value |
 |-----------|-------|
@@ -250,17 +281,29 @@ def _build_financial_options(options: List[Dict]) -> str:
 - Rate Score: **{rate_score}**/100
 - **Total Score: {total}/100**
 
-**Pros:** {pros}
+**Key Benefits:** {pros}
 
-**Cons:** {cons}""")
+**Key Trade-offs:** {cons}""")
     
-    return f"""## 6. Financial Structuring Options
+    return f"""## 6. Financing Options and Trade-offs
 
-Three financing structures were analyzed using the 60/40 scoring methodology:
-- **60% weight:** Repayment capacity (DSCR, FX risk, debt ratios)
-- **40% weight:** Rate competitiveness vs. peer median
+The following financing structures have been identified for this project. Scores are based on a 60/40 weighting of repayment capacity (60%) and interest rate attractiveness (40%).
 
-{chr(10).join(option_sections)}"""
+### 6.1 Summary Comparison
+
+| Option | Structure | Tenor / Grace | All-in Rate | Total Score | Key Benefits | Key Trade-offs |
+|--------|-----------|---------------|-------------|-------------|--------------|----------------|
+{summary_table}
+
+### Decision Framework
+
+Based on the scoring, **{best_name}** currently ranks highest. However, the choice involves important trade-offs:
+
+{narratives_text}
+
+**OPSCOMM is invited to select the most appropriate option or request a variation based on policy and risk considerations.**
+
+{chr(10).join(detail_sections)}"""
 
 
 def _build_sustainability(sustainability: Dict) -> str:
