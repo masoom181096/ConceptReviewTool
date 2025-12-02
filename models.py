@@ -21,9 +21,10 @@ class Case(Base):
     sector_profile = relationship("SectorProfile", back_populates="case", uselist=False, cascade="all, delete-orphan")
     gap_analysis_items = relationship("GapAnalysisItem", back_populates="case", cascade="all, delete-orphan")
     baseline_kpis = relationship("BaselineKPI", back_populates="case", cascade="all, delete-orphan")
-    financial_options = relationship("FinancialOption", back_populates="case", cascade="all, delete-orphan")
+    financial_options = relationship("FinancialOption", back_populates="case", foreign_keys="FinancialOption.case_id", cascade="all, delete-orphan")
     sustainability_profile = relationship("SustainabilityProfile", back_populates="case", uselist=False, cascade="all, delete-orphan")
     concept_note = relationship("ConceptNote", back_populates="case", uselist=False, cascade="all, delete-orphan")
+    selected_financial_option = relationship("FinancialOption", foreign_keys=[selected_financial_option_id], uselist=False)
 
 
 class CaseDocuments(Base):
@@ -114,7 +115,7 @@ class FinancialOption(Base):
     pros = Column(Text, nullable=True)
     cons = Column(Text, nullable=True)
     
-    case = relationship("Case", back_populates="financial_options")
+    case = relationship("Case", back_populates="financial_options", foreign_keys=[case_id])
 
 
 class SustainabilityProfile(Base):
