@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+{% from "_progress_bar.html" import phase_progress %}
+
+{% macro display_val(value, suffix='', allow_zero=false) %}
+  {% if value is not none and (value != 0 or allow_zero) %}
+    {% if value is number %}
+      {{ "{:,}".format(value|int) }}{% if suffix %} {{ suffix }}{% endif %}
+    {% else %}
+      {{ value }}{% if suffix %} {{ suffix }}{% endif %}
+    {% endif %}
+  {% else %}
+    —
+  {% endif %}
+{% endmacro %}
+
+{% block title %}Phase {{ phase_no }} - {{ phase_info[phase_no].title }} | {{ case.name }}{% endblock %}
+
+{% block content %}
+<div class="phase-page">
+    <div class="phase-header">
+        <div class="phase-header-top">
+            <a href="/cases/{{ case.id }}" class="back-link">&larr; Back to Case Overview</a>
+            <h1>{{ case.name }}</h1>
+            <p class="case-meta">{{ case.country }} | {{ case.sector }}</p>
+        </div>
+        
+        {{ phase_progress(case, phase_no) }}
+    </div>
+    
+    <div class="phase-content">
+        <div class="phase-title-section">
+            <h2>Phase {{ phase_no }} – {{ phase_info[phase_no].title }}</h2>
+            {% set phase_completed = (phase_no == 1 and case.phase1_completed) or (phase_no == 2 and case.phase2_completed) or (phase_no == 3 and case.phase3_completed) or (phase_no == 4 and case.phase4_completed) %}
+            {% if phase_completed %}
+                <span class="status-pill status-completed">Completed</span>
+            {% else %}
+                <span class="status-pill status-pending">Not Started</span>
+            {% endif %}
+        </div>
+        
+        {% if phase_no == 1 %}
+        <!-- PHASE 1: Sector Profile, Benchmarks & KPIs -->
+        <div class="card">
+            <h3>Inputs Summary</h3>
+            <p class="input-description">
+                The agent will parse the Sector Profile document, compare it with international benchmarks 
+                (Shenzhen, London, Santiago), and construct baseline KPIs for the pilot project.
+            </p>
+            {% if docs.sector_profile_filename %}
+                <p><strong>Document:</strong> {{ docs.sector_profile_filename }}</p>
+            {% elif docs.sector_profile_text %}
+                <p><strong>Document:</strong> Text input provided</p>
+                <div class="doc-preview">{{ docs.sector_profile_text[:300] }}{% if docs.sector_profile_text|length > 300 %}...{% endif %}</div>
+            {% else %}
+                <p class="warning-text">No sector profile document uploaded yet. <a href="/cases/{{ case.id }}">Upload documents</a></p>
+            {% endif %}
+        </div>
+        
+        {% if thinking_steps %}
+        <div class="card">
+            <h3>Agent Thinking</h3>
+            <div class="thinking-timeline">
+                {% for step in thinking_steps %}
+                <div class="thinking-step">
+                    <div class="step-header">
+                        <span class="step-badge">Step {{ step.step }}</span>
+                        <strong>{{ step.title }}</strong>
+                    </div>
+                    <div class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if sector_profile %}
+        <div class="card">
+            <h3>Sector Profile</h3>
+            <table class="data-table">
+                <tr><th>Total Fleet</th><td>{{ display_val(sector_profile.fleet_total, "buses") }}</td></tr>
+                <tr><th>Diesel Buses</th><td>{{ display_val(sector_profile.fleet_diesel) }}</td></tr>
+                <tr><th>Hybrid Buses</th><td>{{ display_val(sector_profile.fleet_hybrid) }}</td></tr>
+                <tr><th>Electric Buses</th><td>{{ display_val(sector_profile.fleet_electric, '', true) }}</td></tr>
+                <tr><th>Depots</th><td>{{ display_val(sector_profile.depots) }}</td></tr>
+                <tr><th>Daily Ridership</th><td>{{ display_val(sector_profile.daily_ridership, "passengers/day") }}</td></tr>
+                <tr><th>Annual OPEX</th><td>{% if sector_profile.annual_opex_usd %}${{ "{:,.0f}".format(sector_profile.annual_opex_usd) }}{% else %}—{% endif %}</td></tr>
+                <tr><th>Annual CO2</th><td>{{ display_val(sector_profile.annual_co2_tons, "tons/year") }}</td></tr>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if gap_items %}
+        <div class="card">
+            <h3>Gap Analysis</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Indicator</th>
+                        <th>{{ case.country }} Value</th>
+                        <th>Benchmark City</th>
+                        <th>Benchmark Value</th>
+                        <th>Gap</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gap in gap_items %}
+                    <tr>
+                        <td>{{ gap.indicator }}</td>
+                        <td>{{ gap.kenya_value or '—' }}</td>
+                        <td>{{ gap.benchmark_city or '—' }}</td>
+                        <td>{{ gap.benchmark_value or '—' }}</td>
+                        <td>{{ gap.gap_delta or '—' }}</td>
+                        <td><span class="priority-badge priority-{{ gap.comparability|lower }}">{{ gap.comparability }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if kpis %}
+        <div class="card">
+            <h3>Baseline KPIs</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>KPI Name</th>
+                        <th>Baseline</th>
+                        <th>Target</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kpi in kpis %}
+                    <tr>
+                        <td>{{ kpi.name }}</td>
+                        <td>{{ kpi.baseline_value or '—' }}</td>
+                        <td>{{ kpi.target_value or '—' }}</td>
+                        <td>{{ kpi.unit or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% elif phase_no == 2 %}
+        <!-- PHASE 2: Sustainability Assessment -->
+        <div class="card">
+            <h3>Inputs Summary</h3>
+            <p class="input-description">
+                The agent will assess the project's sustainability characteristics using the uploaded 
+                sustainability document, including E&S classification, emissions reduction, and risk analysis.
+            </p>
+            {% if docs.sustainability_filename %}
+                <p><strong>Document:</strong> {{ docs.sustainability_filename }}</p>
+            {% elif docs.sustainability_text %}
+                <p><strong>Document:</strong> Text input provided</p>
+                <div class="doc-preview">{{ docs.sustainability_text[:300] }}{% if docs.sustainability_text|length > 300 %}...{% endif %}</div>
+            {% else %}
+                <p class="warning-text">No sustainability document uploaded yet. <a href="/cases/{{ case.id }}">Upload documents</a></p>
+            {% endif %}
+        </div>
+        
+        {% if thinking_steps %}
+        <div class="card">
+            <h3>Agent Thinking</h3>
+            <div class="thinking-timeline">
+                {% for step in thinking_steps %}
+                <div class="thinking-step">
+                    <div class="step-header">
+                        <span class="step-badge">Step {{ step.step }}</span>
+                        <strong>{{ step.title }}</strong>
+                    </div>
+                    <div class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if sustainability %}
+        <div class="card">
+            <h3>Sustainability Profile</h3>
+            <table class="data-table">
+                <tr>
+                    <th>E&S Category</th>
+                    <td>
+                        {% if sustainability.category %}
+                            <span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                <tr><th>CO2 Reduction</th><td>{{ display_val(sustainability.co2_reduction_tons, "tons/year") }}</td></tr>
+                <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or '—' }}</td></tr>
+            </table>
+            <div class="sustainability-details">
+                <p><strong>Accessibility:</strong> {{ sustainability.accessibility_notes or '—' }}</p>
+                <p><strong>Policy Alignment:</strong> {{ sustainability.policy_alignment_notes or '—' }}</p>
+                <p><strong>Key Risks:</strong> {{ sustainability.key_risks or '—' }}</p>
+                <p><strong>Mitigations:</strong> {{ sustainability.mitigations or '—' }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% elif phase_no == 3 %}
+        <!-- PHASE 3: Market Data & Financial Options -->
+        <div class="card">
+            <h3>Inputs Summary</h3>
+            <p class="input-description">
+                This phase uses stubbed Bloomberg data and repayment heuristics to propose three 
+                financing structures with 60/40 scoring (60% repayment capacity, 40% rate competitiveness).
+            </p>
+        </div>
+        
+        {% if thinking_steps %}
+        <div class="card">
+            <h3>Agent Thinking</h3>
+            <div class="thinking-timeline">
+                {% for step in thinking_steps %}
+                <div class="thinking-step">
+                    <div class="step-header">
+                        <span class="step-badge">Step {{ step.step }}</span>
+                        <strong>{{ step.title }}</strong>
+                    </div>
+                    <div class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if market_data %}
+        <div class="card">
+            <h3>Market Data Snapshot</h3>
+            <table class="data-table compact">
+                <tr><th>EUR 10Y Swap</th><td>{{ market_data.eur_swap_10y_pct }}%</td></tr>
+                <tr><th>Green Bond Spread (10Y)</th><td>{{ market_data.green_bond_spread_10y_pct }}%</td></tr>
+                <tr><th>All-in Green Rate</th><td>{{ market_data.all_in_green_rate_pct }}%</td></tr>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if financial_options %}
+        <div class="card">
+            <h3>Financial Options</h3>
+            <table class="data-table financial-options-table">
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Structure</th>
+                        <th>Tenor/Grace</th>
+                        <th>Rate</th>
+                        <th>Repayment Score</th>
+                        <th>Rate Score</th>
+                        <th>Total Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for opt in financial_options %}
+                    <tr>
+                        <td><strong>Option {{ loop.index | string | replace('1', 'A') | replace('2', 'B') | replace('3', 'C') }}</strong></td>
+                        <td>{{ opt.name }}</td>
+                        <td>{{ opt.tenor_years or '—' }}y / {{ opt.grace_period_years or '—' }}y</td>
+                        <td>{% if opt.all_in_rate_bps %}{{ (opt.all_in_rate_bps / 100)|round(2) }}%{% else %}—{% endif %}</td>
+                        <td>{{ opt.repayment_score|round(1) if opt.repayment_score else '—' }}</td>
+                        <td>{{ opt.rate_score|round(1) if opt.rate_score else '—' }}</td>
+                        <td><strong>{{ opt.total_score|round(1) if opt.total_score else '—' }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="options-details">
+                {% for opt in financial_options %}
+                <div class="option-detail">
+                    <h4>Option {{ loop.index | string | replace('1', 'A') | replace('2', 'B') | replace('3', 'C') }}: {{ opt.name }}</h4>
+                    <div class="pros-cons">
+                        <div class="pros">
+                            <strong>Benefits:</strong>
+                            <p>{{ opt.pros or 'Not specified' }}</p>
+                        </div>
+                        <div class="cons">
+                            <strong>Trade-offs:</strong>
+                            <p>{{ opt.cons or 'Not specified' }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% elif phase_no == 4 %}
+        <!-- PHASE 4: Concept Note Draft -->
+        <div class="card">
+            <h3>Inputs Summary</h3>
+            <p class="input-description">
+                The agent will assemble all previous phase outputs into a comprehensive Concept Note 
+                draft for OPSComm review, summarizing the need, context, KPIs, financing options, 
+                and sustainability assessment.
+            </p>
+        </div>
+        
+        {% if thinking_steps %}
+        <div class="card">
+            <h3>Agent Thinking</h3>
+            <div class="thinking-timeline">
+                {% for step in thinking_steps %}
+                <div class="thinking-step">
+                    <div class="step-header">
+                        <span class="step-badge">Step {{ step.step }}</span>
+                        <strong>{{ step.title }}</strong>
+                    </div>
+                    <div class="step-description">{{ step.description|replace('\n', '<br>')|safe }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if concept_note_html %}
+        <div class="card concept-note-preview">
+            <h3>Concept Note Preview</h3>
+            <div class="concept-note-content">
+                {{ concept_note_html|safe }}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% endif %}
+        
+        <!-- Phase Navigation -->
+        <div class="phase-actions">
+            <div class="nav-buttons">
+                {% if phase_no > 1 %}
+                    <a href="/cases/{{ case.id }}/phases/{{ phase_no - 1 }}" class="btn btn-secondary">&larr; Back to Phase {{ phase_no - 1 }}</a>
+                {% else %}
+                    <a href="/cases/{{ case.id }}" class="btn btn-secondary">&larr; Back to Case</a>
+                {% endif %}
+            </div>
+            
+            <div class="action-buttons">
+                {% set phase_completed = (phase_no == 1 and case.phase1_completed) or (phase_no == 2 and case.phase2_completed) or (phase_no == 3 and case.phase3_completed) or (phase_no == 4 and case.phase4_completed) %}
+                {% set prev_phase_completed = (phase_no == 1) or (phase_no == 2 and case.phase1_completed) or (phase_no == 3 and case.phase2_completed) or (phase_no == 4 and case.phase3_completed) %}
+                
+                {% if not phase_completed and prev_phase_completed %}
+                    <form action="/cases/{{ case.id }}/phases/{{ phase_no }}/run" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-primary">Run Phase {{ phase_no }}</button>
+                    </form>
+                {% elif not prev_phase_completed %}
+                    <span class="btn btn-disabled">Complete Phase {{ phase_no - 1 }} first</span>
+                {% endif %}
+                
+                {% if phase_no < 4 %}
+                    {% if phase_completed %}
+                        <a href="/cases/{{ case.id }}/phases/{{ phase_no + 1 }}" class="btn btn-success">Proceed to Phase {{ phase_no + 1 }} &rarr;</a>
+                    {% else %}
+                        <span class="btn btn-disabled">Proceed to Phase {{ phase_no + 1 }} &rarr;</span>
+                    {% endif %}
+                {% else %}
+                    {% if phase_completed %}
+                        <a href="/cases/{{ case.id }}/review" class="btn btn-success">Proceed to Review & Approve &rarr;</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

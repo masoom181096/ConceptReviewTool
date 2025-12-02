@@ -1,0 +1,50 @@
+{% macro phase_progress(case, current_phase) %}
+<div class="phase-progress">
+    <div class="phase-step {% if case.phase1_completed %}completed{% endif %} {% if current_phase == 1 %}current{% endif %}">
+        <div class="step-indicator">
+            {% if case.phase1_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">1</span>
+            {% endif %}
+        </div>
+        <span class="step-label">Sector & KPIs</span>
+    </div>
+    <div class="step-connector {% if case.phase1_completed %}completed{% endif %}"></div>
+    
+    <div class="phase-step {% if case.phase2_completed %}completed{% endif %} {% if current_phase == 2 %}current{% endif %}">
+        <div class="step-indicator">
+            {% if case.phase2_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">2</span>
+            {% endif %}
+        </div>
+        <span class="step-label">Sustainability</span>
+    </div>
+    <div class="step-connector {% if case.phase2_completed %}completed{% endif %}"></div>
+    
+    <div class="phase-step {% if case.phase3_completed %}completed{% endif %} {% if current_phase == 3 %}current{% endif %}">
+        <div class="step-indicator">
+            {% if case.phase3_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">3</span>
+            {% endif %}
+        </div>
+        <span class="step-label">Financial Options</span>
+    </div>
+    <div class="step-connector {% if case.phase3_completed %}completed{% endif %}"></div>
+    
+    <div class="phase-step {% if case.phase4_completed %}completed{% endif %} {% if current_phase == 4 %}current{% endif %}">
+        <div class="step-indicator">
+            {% if case.phase4_completed %}
+                <span class="step-check">&#10003;</span>
+            {% else %}
+                <span class="step-number">4</span>
+            {% endif %}
+        </div>
+        <span class="step-label">Concept Note</span>
+    </div>
+</div>
+{% endmacro %}
