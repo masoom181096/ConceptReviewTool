@@ -28,6 +28,9 @@ services/               # Stub services for external integrations
   stub_market_data.py   # Mock Bloomberg + peer deals data
   stub_sap_finance.py   # Mock repayment/fiscal metrics
 
+utils/                  # Utility modules
+  document_parsing.py   # Extract text from .docx and .txt uploads
+
 templates/              # Jinja2 HTML templates
   base.html
   cases_list.html
@@ -62,7 +65,8 @@ static/
 
 ## Key Features
 - Case management with status tracking (NEW, IN_REVIEW, APPROVED, ARCHIVED)
-- Multi-stage document input forms
+- **Document Upload**: Upload .docx or .txt files for each document type (files take priority over manual text input)
+- Multi-stage document input forms with both file upload and textarea options
 - Automated agent pipeline for data extraction
 - Gap analysis against international cities (Shenzhen, London, Santiago, Bogota)
 - Three financial options: Sovereign Loan, Guaranteed City Loan, Blended Co-Financing
