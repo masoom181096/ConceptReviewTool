@@ -110,6 +110,9 @@ static/
   - Summary comparison table with all 3 financial options
   - Decision Framework section explaining trade-offs narratively
   - Each option shows: Structure, Tenor/Grace, Rate, Score, Benefits, Trade-offs
+- **Delete Case functionality**:
+  - Delete button on All Cases page with confirmation modal
+  - Removes all related data (documents, profiles, analysis items, etc.)
 
 ## Future Enhancements
 - Replace deterministic agents with LLM integration

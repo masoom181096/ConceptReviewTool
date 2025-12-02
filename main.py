@@ -118,6 +118,26 @@ async def list_cases(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.post("/cases/{case_id}/delete", response_class=HTMLResponse)
+async def delete_case(case_id: int, db: Session = Depends(get_db)):
+    """Delete a case and all its related data."""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).delete()
+    db.query(SectorProfile).filter(SectorProfile.case_id == case_id).delete()
+    db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).delete()
+    db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).delete()
+    db.query(FinancialOption).filter(FinancialOption.case_id == case_id).delete()
+    db.query(SustainabilityProfile).filter(SustainabilityProfile.case_id == case_id).delete()
+    db.query(ConceptNote).filter(ConceptNote.case_id == case_id).delete()
+    db.delete(case)
+    db.commit()
+    
+    return RedirectResponse(url="/cases", status_code=302)
+
+
 @app.get("/cases/new", response_class=HTMLResponse)
 async def new_case_form(request: Request):
     """Display form to create new case (blank, secondary path)."""
