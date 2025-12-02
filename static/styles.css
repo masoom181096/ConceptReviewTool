@@ -573,6 +573,176 @@ body {
     box-shadow: 0 0 0 2px rgba(0,51,102,0.1);
 }
 
+/* Intake Page Styles */
+.intake-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.intake-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.intake-header h2 {
+    color: var(--primary-color);
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.intake-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.intake-card textarea {
+    width: 100%;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 250px;
+}
+
+.intake-card textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+}
+
+.alt-action {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.alt-action a {
+    color: var(--primary-color);
+}
+
+/* Intake Layout */
+.intake-layout {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 1.5rem;
+}
+
+.extracted-value {
+    background-color: var(--light-bg);
+    padding: 0.75rem;
+    border-radius: 4px;
+    border-left: 3px solid var(--primary-color);
+    font-family: inherit;
+}
+
+.help-text.warning {
+    color: var(--warning-color);
+}
+
+.email-preview {
+    background-color: var(--light-bg);
+    padding: 1rem;
+    border-radius: 4px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.email-preview pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-color);
+    margin: 0;
+}
+
+/* Thinking Log Styles */
+.thinking-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8f4f8 100%);
+    border-left: 4px solid var(--primary-color);
+}
+
+.thinking-log {
+    margin-top: 1rem;
+}
+
+.thinking-step {
+    background: white;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border-color);
+    transition: box-shadow 0.2s;
+}
+
+.thinking-step:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.step-number {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.step-title {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.step-description {
+    color: var(--text-color);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Comparability badges */
+.comparability-LOW {
+    background-color: #ffdddd;
+    color: #c00;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.comparability-MEDIUM {
+    background-color: #fff3cd;
+    color: #856404;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.comparability-HIGH {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 @media (max-width: 900px) {
     .case-layout {
         grid-template-columns: 1fr;
@@ -589,5 +759,9 @@ body {
     .file-input-row {
         flex-direction: column;
         align-items: flex-start;
+    }
+    
+    .intake-layout {
+        grid-template-columns: 1fr;
     }
 }

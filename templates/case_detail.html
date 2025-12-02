@@ -13,26 +13,23 @@
 
 <div class="case-layout">
     <div class="main-column">
+        {% if docs.need_assessment_text %}
         <div class="card">
-            <h3>Input Documents</h3>
-            <p class="help-text">Upload files (.docx or .txt) or paste/edit text manually. Files take priority over text input.</p>
+            <h3>Need Assessment (from Email)</h3>
+            <div class="email-preview">
+                <pre>{{ docs.need_assessment_text[:500] }}{% if docs.need_assessment_text|length > 500 %}...{% endif %}</pre>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <h3>Upload Documents</h3>
+            <p class="help-text">
+                Upload the Sector Profile document and Project Sustainability document. 
+                International benchmarks and financial data are provided automatically by the system.
+            </p>
             
             <form action="/cases/{{ case.id }}/update_docs" method="post" enctype="multipart/form-data" class="form">
-                <div class="doc-section">
-                    <div class="doc-header">
-                        <label for="need_assessment_text">Need Assessment (Email/MoM)</label>
-                        {% if docs.need_assessment_filename %}
-                        <span class="file-badge">Uploaded: {{ docs.need_assessment_filename }}</span>
-                        {% endif %}
-                    </div>
-                    <textarea id="need_assessment_text" name="need_assessment_text" rows="4" 
-                              placeholder="Paste the need assessment email or minutes of meeting here...">{{ docs.need_assessment_text or '' }}</textarea>
-                    <div class="file-input-row">
-                        <label class="file-label">Or upload .docx/.txt:</label>
-                        <input type="file" name="need_assessment_file" accept=".docx,.txt" class="file-input" />
-                    </div>
-                </div>
-                
                 <div class="doc-section">
                     <div class="doc-header">
                         <label for="sector_profile_text">Sector Profile Document</label>
@@ -41,7 +38,7 @@
                         {% endif %}
                     </div>
                     <textarea id="sector_profile_text" name="sector_profile_text" rows="4"
-                              placeholder="Paste government sector documentation, fleet data, etc...">{{ docs.sector_profile_text or '' }}</textarea>
+                              placeholder="Paste government sector documentation, fleet data, master plan details...">{{ docs.sector_profile_text or '' }}</textarea>
                     <div class="file-input-row">
                         <label class="file-label">Or upload .docx/.txt:</label>
                         <input type="file" name="sector_profile_file" accept=".docx,.txt" class="file-input" />
@@ -50,58 +47,13 @@
                 
                 <div class="doc-section">
                     <div class="doc-header">
-                        <label for="benchmark_text">International Benchmark Notes</label>
-                        {% if docs.benchmark_filename %}
-                        <span class="file-badge">Uploaded: {{ docs.benchmark_filename }}</span>
-                        {% endif %}
-                    </div>
-                    <textarea id="benchmark_text" name="benchmark_text" rows="4"
-                              placeholder="Paste international benchmark data and comparisons...">{{ docs.benchmark_text or '' }}</textarea>
-                    <div class="file-input-row">
-                        <label class="file-label">Or upload .docx/.txt:</label>
-                        <input type="file" name="benchmark_file" accept=".docx,.txt" class="file-input" />
-                    </div>
-                </div>
-                
-                <div class="doc-section">
-                    <div class="doc-header">
-                        <label for="ops_fleet_text">Operations/Fleet Data (Baseline KPIs)</label>
-                        {% if docs.ops_fleet_filename %}
-                        <span class="file-badge">Uploaded: {{ docs.ops_fleet_filename }}</span>
-                        {% endif %}
-                    </div>
-                    <textarea id="ops_fleet_text" name="ops_fleet_text" rows="4"
-                              placeholder="Paste operational data, fleet statistics, KPI baselines...">{{ docs.ops_fleet_text or '' }}</textarea>
-                    <div class="file-input-row">
-                        <label class="file-label">Or upload .docx/.txt:</label>
-                        <input type="file" name="ops_fleet_file" accept=".docx,.txt" class="file-input" />
-                    </div>
-                </div>
-                
-                <div class="doc-section">
-                    <div class="doc-header">
-                        <label for="financial_data_text">Financial Data (Bloomberg/SAP Notes)</label>
-                        {% if docs.financial_data_filename %}
-                        <span class="file-badge">Uploaded: {{ docs.financial_data_filename }}</span>
-                        {% endif %}
-                    </div>
-                    <textarea id="financial_data_text" name="financial_data_text" rows="4"
-                              placeholder="Paste financial data notes, loan requirements, amounts...">{{ docs.financial_data_text or '' }}</textarea>
-                    <div class="file-input-row">
-                        <label class="file-label">Or upload .docx/.txt:</label>
-                        <input type="file" name="financial_data_file" accept=".docx,.txt" class="file-input" />
-                    </div>
-                </div>
-                
-                <div class="doc-section">
-                    <div class="doc-header">
-                        <label for="sustainability_text">Project Sustainability Document</label>
+                        <label for="sustainability_text">Project Characteristics / Sustainability Document</label>
                         {% if docs.sustainability_filename %}
                         <span class="file-badge">Uploaded: {{ docs.sustainability_filename }}</span>
                         {% endif %}
                     </div>
                     <textarea id="sustainability_text" name="sustainability_text" rows="4"
-                              placeholder="Paste sustainability/ESG documentation...">{{ docs.sustainability_text or '' }}</textarea>
+                              placeholder="Paste sustainability/ESG documentation, environmental impact, accessibility plans...">{{ docs.sustainability_text or '' }}</textarea>
                     <div class="file-input-row">
                         <label class="file-label">Or upload .docx/.txt:</label>
                         <input type="file" name="sustainability_file" accept=".docx,.txt" class="file-input" />
@@ -109,7 +61,7 @@
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-secondary">Save Inputs (Text or Files)</button>
+                    <button type="submit" class="btn btn-secondary">Save Documents</button>
                 </div>
             </form>
         </div>
@@ -117,9 +69,9 @@
         <div class="card">
             <h3>Agent Actions</h3>
             <div class="action-buttons">
-                <form action="/cases/{{ case.id }}/run_agents" method="post" style="display: inline;">
+                <form action="/cases/{{ case.id }}/run_concept_review" method="post" style="display: inline;">
                     <button type="submit" class="btn btn-primary btn-large">
-                        Run Agents & Generate Concept Note
+                        Run Concept Review Agent
                     </button>
                 </form>
                 
@@ -129,7 +81,29 @@
                 </a>
                 {% endif %}
             </div>
+            <p class="help-text" style="margin-top: 1rem;">
+                The agent will analyze documents, compare with international benchmarks, 
+                calculate financial options, and generate a Concept Note.
+            </p>
         </div>
+        
+        {% if thinking_steps %}
+        <div class="card thinking-card">
+            <h3>Agent Thinking / Background Steps</h3>
+            <p class="help-text">The agent performed the following reasoning steps:</p>
+            <div class="thinking-log">
+                {% for step in thinking_steps %}
+                <div class="thinking-step">
+                    <div class="step-header">
+                        <span class="step-number">Step {{ step.step }}</span>
+                        <span class="step-title">{{ step.title }}</span>
+                    </div>
+                    <p class="step-description">{{ step.description }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         
         {% if sector_profile %}
         <div class="card">
@@ -152,7 +126,7 @@
         
         {% if gap_items %}
         <div class="card">
-            <h3>Gap Analysis</h3>
+            <h3>Gap Analysis vs International Benchmarks</h3>
             <table class="data-table">
                 <thead>
                     <tr>

@@ -12,6 +12,7 @@ class Case(Base):
     country = Column(String(100), nullable=False)
     sector = Column(String(100), nullable=False)
     status = Column(String(20), default="NEW")
+    agent_thinking_log = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

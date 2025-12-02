@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Start New Review - EBRD Concept Review Tool{% endblock %}
+
+{% block content %}
+<div class="intake-page">
+    <div class="intake-header">
+        <h2>Start a New Concept Review</h2>
+        <p class="subtitle">Paste the client email or Minutes of Meeting to begin</p>
+    </div>
+    
+    <div class="card intake-card">
+        <h3>Client Communication</h3>
+        <p class="help-text">
+            Paste the email or meeting notes from the client requesting financing. 
+            The system will extract project details to help pre-fill the case information.
+        </p>
+        
+        <form action="/intake" method="post" class="form">
+            <div class="form-group">
+                <label for="email_text">Email / Minutes of Meeting</label>
+                <textarea 
+                    id="email_text" 
+                    name="email_text" 
+                    rows="12" 
+                    required
+                    placeholder="Dear EBRD Team,
+
+We are writing to request financing support for our urban transport modernization project...
+
+Project: Kenya E-Bus Fleet Renewal Programme
+Country: Kenya
+Estimated financing need: $50 million
+
+The project aims to replace 200 diesel buses with electric buses in Nairobi...
+
+Best regards,
+Ministry of Transport">{{ email_text or '' }}</textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    Continue to Case Creation
+                </button>
+            </div>
+        </form>
+        
+        <div class="alt-action">
+            <p>Or <a href="/cases/new">create a blank case manually</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+🔧 Replit Prompt – Email-First Intake, Background Agents, Visible “Thinking”, Local-Runnable
+I already have a working Concept Review Tool FastAPI project from previous prompts.
+Key points of the current app:
+Stack: Python + FastAPI + Jinja2 + SQLite + SQLAlchemy, with uvicorn to run.
+Models: Case, CaseDocuments, SectorProfile, GapAnalysisItem, BaselineKPI, FinancialOption, SustainabilityProfile, ConceptNote.
+There is a Case list page, a Case detail page, document upload for multiple fields, and a button to run agents and generate a Concept Note.
+Agents live in agents/ and stub services (e.g. stub_market_data) live in services/.
+I now want to change the UX flow and the agent behavior as follows.
+1. Email-First Intake (before Case creation)
+Change the entry flow so that the very first thing the user sees is a page asking for the email / MoM text from the client.
+Route suggestion:
+GET / → show an intake page with:
+A textarea: email_text
+A button: “Continue to Case Creation”
+POST /intake → process the email text.
+On POST /intake:
+Call the existing Need Assessment Agent (e.g. parse_need_assessment) on email_text.
+Use its output to pre-populate a “Create Case” form:
+name (project name),
+country,
+sector (default can be “Urban Transport”),
+The full email_text should be stored as need_assessment_text in an in-memory object or hidden field for the next step.
+Show a second page GET /cases/new_from_intake (or render directly after POST) that:
+Displays the pre-filled case fields with the ability to edit them.
+On submit (POST /cases), actually creates the Case (status IN_REVIEW) and a CaseDocuments row where:
+need_assessment_text is set from the original email text.
+Then redirect to the Case detail page.
+The old “create case without email” path can be kept but should be secondary (e.g. a small link “create blank case”), the main path is now email-first.
+2. Uploads: Only Sector Profile + Project Sustainability docs
+On the Case detail page, simplify the upload expectations:
+We only expect two uploaded documents:
+Sector Profile Document – gov/master-plan style.
+Project Characteristics / Sustainability Document.
+International benchmarks and financial data should not be prompted as uploads anymore; they will be injected via background stub logic.
+Concretely:
+In case_detail.html, keep / add a form (with enctype="multipart/form-data") with:
+File input: sector_profile_file (accept .docx,.txt).
+File input: sustainability_file (accept .docx,.txt).
+Optional textareas to show / edit the extracted text:
+sector_profile_text
+sustainability_text
+A “Save Documents” button.
+Update the corresponding route (e.g. POST /cases/{case_id}/update_docs) to:
+Extract text from the two uploads using the existing extract_text_from_upload helper.
+Store:
+CaseDocuments.sector_profile_text
+CaseDocuments.sustainability_text
+plus any filename metadata if you already have columns for that.
+It’s OK to keep need_assessment_text stored from intake; other text fields can remain but will not be used.
+3. Background “Agent” Behavior after uploads
+After the Sector Profile + Sustainability documents are uploaded and saved, the user should be able to click a single button:
+Button label: “Run Concept Review Agent”.
+Route: POST /cases/{case_id}/run_concept_review.
+This should trigger an orchestrated background agent function that performs the following steps in order and produces both:
+structured data (SectorProfile, GapAnalysisItem, BaselineKPI, FinancialOption, SustainabilityProfile, ConceptNote), and
+a human-readable “thinking log” explaining each step.
+3.1 Create an Orchestrator Agent
+Add a new module agents/concept_review_orchestrator.py with a function like:
+def run_concept_review_for_case(case: Case, case_docs: CaseDocuments) -> dict:
+    """
+    Runs the full happy-path Concept Review flow for a case.
+    Returns a dict with keys:
+      - 'sector_profile'
+      - 'gap_items'
+      - 'kpis'
+      - 'financial_options'
+      - 'sustainability_profile'
+      - 'concept_note_content'
+      - 'thinking_steps'  # list of step descriptions for UI
+    """
+Inside this function, implement deterministic behavior (no real LLM calls) that does:
+Parse Sector Profile doc
+Use Sector Profiling Agent to extract fleet size, fleet composition, depots, ridership, baseline CO₂, OPEX, etc. from case_docs.sector_profile_text.
+International benchmarks & Gap Analysis (background)
+Use a stub international benchmarks module (e.g. services/stub_international_benchmarks.py) which contains hard-coded benchmark data derived from my IEA document, e.g.:
+Shenzhen: 100% electric, cost_per_bus = 32000, etc.
+London: 35% electric.
+Santiago: 20% electric.
+Compare the Kenya sector profile vs these benchmarks and create GapAnalysisItem records.
+Baseline KPIs
+Use Baseline KPI Agent to define a handful of key KPIs (emissions, operating cost per bus, ridership per bus, etc.) based on:
+the SectorProfile fields,
+and the gap analysis.
+Financial Data via Bloomberg stub (background)
+Use the existing services/stub_market_data.py with the static data:
+EUR_SWAP_10Y = 0.02
+GREEN_BOND_SPREAD_10Y = 0.006
+Compute the all-in 10Y green rate as 2.6% and pass it into the FinancialStructuringAgent to generate at least 3 financial options (A, B, C) with the 60/40 weighting:
+60% repayment capacity (stubbed / simple rules),
+40% interest rate attractiveness (vs base 2.6%).
+Parse Sustainability doc
+Use Sustainability Agent on case_docs.sustainability_text to build a SustainabilityProfile with:
+project category (e.g. B),
+CO₂ reduction estimate,
+headline ESG risks & mitigations,
+policy alignment.
+Concept Note composition
+Call Concept Note Agent with the structured objects from steps 1–5 to produce a Markdown Concept Note summarising:
+need / background,
+sector profile,
+gap analysis,
+KPIs,
+financial options (with scores),
+sustainability story.
+Persist everything
+Save / update:
+SectorProfile row for the case,
+GapAnalysisItem rows,
+BaselineKPI rows,
+FinancialOption rows,
+SustainabilityProfile row,
+ConceptNote row.
+Build a thinking_steps list (see next section) and store it either:
+in a new table AgentRunLog (with case_id, created_at, log_text), or
+as a simple text field on Case (e.g. case.agent_thinking_log).
+The POST /cases/{case_id}/run_concept_review route should call this orchestrator, commit to the database, then redirect back to the case detail page.
+4. “Thinking of the Agent” – Visible, Predetermined Log
+I want to display the agent’s “thinking” to the user after a run, similar to how an LLM would describe its internal reasoning – but it must be fully deterministic and pre-designed, not generated at runtime by an LLM.
+Implementation details:
+In run_concept_review_for_case, construct a list like:
+This is predetermined structure; values like fleet_total, annual_co2, ridership, etc. can be plugged in from the parsed SectorProfile where available.
+Do not call an LLM; the text is templated.
+Save these steps as one long Markdown/text block or as JSON in the DB.
+In case_detail.html, add a section titled “Agent Thinking / Background Steps” that:
+iterates over thinking_steps,
+prints each step number, title, and description.
+This should make the agent’s reasoning transparent, even though everything is stubbed/mocked.
+5. Make the project easily runnable locally (not Replit-only)
+Ensure the project can be cloned and run locally without any Replit-specific components.
+Add or update a README.md at the project root with:
+Setup instructions:
+Note that the app runs at http://127.0.0.1:8000.
+Mention that all “external data” (benchmarks, Bloomberg) are mock/stub modules and no external APIs are called.
+Ensure no code uses Replit-specific APIs (like replit.db).
+File uploads should be handled via FastAPI and stored either in memory or in a local /uploads directory if you already implemented that.
+Make sure the app does not require any environment variables to run in basic mode.
+Please implement all of the above changes cleanly:
+keep the existing agents and models where possible,
+add the orchestrator agent and thinking log,
+adjust routes and templates for the new flow (email-first, two uploads, single “Run Concept Review Agent” button),
+and verify that uvicorn main:app --reload works when run locally.
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+uvicorn main:app --reload
+thinking_steps = [
+    {
+        "step": 1,
+        "title": "Parsing Sector Profile document",
+        "description": f"I extracted fleet size ({fleet_total} buses), baseline emissions ({annual_co2} tCO₂/year), daily ridership (~{ridership} passengers) and OPEX ({opex} USD) from the sector profile document."
+    },
+    {
+        "step": 2,
+        "title": "Comparing with international benchmarks",
+        "description": "I compared Nairobi’s 0% electric buses to benchmarks (Shenzhen 100%, London 35%, Santiago 20%) and identified a large electrification gap and higher operating cost per bus."
+    },
+    {
+        "step": 3,
+        "title": "Baselining KPIs",
+        "description": "Using the fleet and ridership data, I defined KPIs for CO₂ emissions, operating cost per bus, and ridership per bus, and set initial targets such as a 30–40% reduction in emissions."
+    },
+    {
+        "step": 4,
+        "title": "Retrieving market data and proposing financial options",
+        "description": "Using stubbed Bloomberg data (EUR_SWAP_10Y = 2.0%, GREEN_BOND_SPREAD_10Y = 0.6%), I computed a 2.6% all-in 10-year green rate and constructed three financing options, scoring them using a 60/40 weighting (repayment capacity / interest rate)."
+    },
+    {
+        "step": 5,
+        "title": "Assessing project sustainability",
+        "description": "I parsed the project sustainability document to capture expected CO₂ and PM reductions, accessibility improvements, and key ESG risks and mitigations, and summarised alignment with EBRD’s green objectives."
+    },
+    {
+        "step": 6,
+        "title": "Generating the Concept Note draft",
+        "description": "I combined all structured elements (sector profile, gaps, KPIs, financing options, and sustainability assessment) into a draft Concept Note for OPSCOMM review."
+    },
+]
+ 
+ 

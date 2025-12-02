@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Create Case from Intake - EBRD Concept Review Tool{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2>Create Case from Email Intake</h2>
+        <p class="subtitle">Review and confirm the extracted project details</p>
+    </div>
+</div>
+
+<div class="intake-layout">
+    <div class="main-column">
+        <div class="card">
+            <h3>Extracted Project Details</h3>
+            <p class="help-text">
+                The following details were extracted from the client communication. 
+                Please review and edit as needed before creating the case.
+            </p>
+            
+            <form action="/cases/create_from_intake" method="post" class="form">
+                <input type="hidden" name="email_text" value="{{ email_text or '' }}">
+                
+                <div class="form-group">
+                    <label for="name">Project Name</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        value="{{ project_name or '' }}" 
+                        required
+                        placeholder="e.g., Kenya E-Bus Fleet Programme">
+                    {% if not project_name %}
+                    <p class="help-text warning">Could not extract project name - please enter manually</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="country">Country</label>
+                    <input 
+                        type="text" 
+                        id="country" 
+                        name="country" 
+                        value="{{ country or '' }}" 
+                        required
+                        placeholder="e.g., Kenya">
+                    {% if not country %}
+                    <p class="help-text warning">Could not extract country - please enter manually</p>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="sector">Sector</label>
+                    <input 
+                        type="text" 
+                        id="sector" 
+                        name="sector" 
+                        value="{{ sector or 'Urban Transport' }}" 
+                        required
+                        placeholder="e.g., Urban Transport">
+                </div>
+                
+                {% if requested_amount %}
+                <div class="form-group">
+                    <label>Extracted Financing Request</label>
+                    <p class="extracted-value">${{ "{:,.0f}".format(requested_amount) }}</p>
+                </div>
+                {% endif %}
+                
+                {% if problem_summary %}
+                <div class="form-group">
+                    <label>Problem Summary (from email)</label>
+                    <p class="extracted-value">{{ problem_summary }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="form-actions">
+                    <a href="/" class="btn btn-secondary">Back to Intake</a>
+                    <button type="submit" class="btn btn-primary">Create Case</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="side-column">
+        <div class="card">
+            <h3>Original Email</h3>
+            <div class="email-preview">
+                <pre>{{ email_text }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
