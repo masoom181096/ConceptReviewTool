@@ -2184,6 +2184,16 @@ body {
     border-left-width: 3px;
 }
 
+/* Sources under output tables */
+.output-sources {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    border-top: 1px dashed var(--border-color);
+    line-height: 1.6;
+}
+
 @keyframes slideInUp {
     from {
         opacity: 0;

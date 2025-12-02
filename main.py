@@ -21,7 +21,13 @@ from agents.concept_review_orchestrator import (
     run_phase2_sustainability,
     run_phase3_financial_options,
     run_phase4_concept_note,
-    format_phase_thinking_json
+    format_phase_thinking_json,
+    SECTOR_PROFILE_VERIFICATION_SOURCES,
+    GAP_ANALYSIS_VERIFICATION_SOURCES,
+    KPI_VERIFICATION_SOURCES,
+    SUSTAINABILITY_VERIFICATION_SOURCES,
+    MARKET_DATA_VERIFICATION_SOURCES,
+    CONCEPT_NOTE_VERIFICATION_SOURCES,
 )
 from utils.document_parsing import extract_text_from_upload
 
@@ -616,6 +622,12 @@ async def view_phase(
             "market_data": market_data,
             "phase_completed": current_phase_completed,
             "auto_run_phase": auto_run_phase,
+            "sector_profile_sources": SECTOR_PROFILE_VERIFICATION_SOURCES,
+            "gap_analysis_sources": GAP_ANALYSIS_VERIFICATION_SOURCES,
+            "kpi_sources": KPI_VERIFICATION_SOURCES,
+            "sustainability_sources": SUSTAINABILITY_VERIFICATION_SOURCES,
+            "market_data_sources": MARKET_DATA_VERIFICATION_SOURCES,
+            "concept_note_sources": CONCEPT_NOTE_VERIFICATION_SOURCES,
         }
     )
 

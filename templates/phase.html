@@ -125,6 +125,9 @@
                                     <tr><th>Annual OPEX</th><td>{% if sector_profile.annual_opex_usd %}${{ "{:,.0f}".format(sector_profile.annual_opex_usd) }}{% else %}—{% endif %}</td></tr>
                                     <tr><th>Annual CO2</th><td>{{ display_val(sector_profile.annual_co2_tons, "tons/year") }}</td></tr>
                                 </table>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ sector_profile_sources | join("; ") }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -157,6 +160,9 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ gap_analysis_sources | join("; ") }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -185,6 +191,9 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ kpi_sources | join("; ") }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -211,6 +220,9 @@
                                     <p><strong>Key Risks:</strong> {{ sustainability.key_risks or '—' }}</p>
                                     <p><strong>Mitigations:</strong> {{ sustainability.mitigations or '—' }}</p>
                                 </div>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ sustainability_sources | join("; ") }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -225,6 +237,9 @@
                                     <tr><th>Green Bond Spread (10Y)</th><td>{{ market_data.green_bond_spread_10y_pct }}%</td></tr>
                                     <tr><th>All-in Green Rate</th><td>{{ market_data.all_in_green_rate_pct }}%</td></tr>
                                 </table>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ market_data_sources | join("; ") }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -305,6 +320,9 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ market_data_sources | join("; ") }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -316,6 +334,9 @@
                                 <h3>Concept Note Preview</h3>
                                 <div class="concept-note-content">
                                     {{ concept_note_html|safe }}
+                                </div>
+                                <div class="output-sources">
+                                    <small>Sources (verification): {{ concept_note_sources | join("; ") }}</small>
                                 </div>
                             </div>
                         </div>
