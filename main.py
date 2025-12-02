@@ -16,7 +16,12 @@ from models import (
 from agents import parse_need_assessment
 from agents.concept_review_orchestrator import (
     run_concept_review_for_case,
-    format_thinking_log_markdown
+    format_thinking_log_markdown,
+    run_phase1_sectors_and_kpis,
+    run_phase2_sustainability,
+    run_phase3_financial_options,
+    run_phase4_concept_note,
+    format_phase_thinking_json
 )
 from utils.document_parsing import extract_text_from_upload
 
@@ -514,6 +519,308 @@ async def review_decision(
     db.commit()
     
     return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
+
+
+# =============================================================================
+# MULTI-PHASE CONCEPT REVIEW ROUTES
+# =============================================================================
+
+PHASE_INFO = {
+    1: {"title": "Sector Profile, Benchmarks & KPIs", "short": "Sector & KPIs"},
+    2: {"title": "Sustainability Assessment", "short": "Sustainability"},
+    3: {"title": "Market Data & Financial Options", "short": "Financial Options"},
+    4: {"title": "Concept Note Draft", "short": "Concept Note"},
+}
+
+
+@app.get("/cases/{case_id}/phases/{phase_no}", response_class=HTMLResponse)
+async def view_phase(
+    request: Request,
+    case_id: int,
+    phase_no: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Render the phase screen (1..4) for the given case.
+    Shows progress bar, relevant outputs (if already run), Run Phase button,
+    and Proceed to next/back navigation buttons.
+    """
+    if phase_no < 1 or phase_no > 4:
+        raise HTTPException(status_code=404, detail="Invalid phase number")
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    
+    sector_profile = db.query(SectorProfile).filter(SectorProfile.case_id == case_id).first()
+    gap_items = db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).all()
+    kpis = db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).all()
+    sustainability = db.query(SustainabilityProfile).filter(
+        SustainabilityProfile.case_id == case_id
+    ).first()
+    financial_options = db.query(FinancialOption).filter(
+        FinancialOption.case_id == case_id
+    ).order_by(FinancialOption.total_score.desc()).all()
+    concept_note = db.query(ConceptNote).filter(ConceptNote.case_id == case_id).first()
+    
+    thinking_steps = None
+    phase_thinking_field = getattr(case, f"phase{phase_no}_thinking", None)
+    if phase_thinking_field:
+        try:
+            thinking_steps = json.loads(phase_thinking_field)
+        except json.JSONDecodeError:
+            thinking_steps = None
+    
+    concept_note_html = None
+    if concept_note and concept_note.content_markdown:
+        concept_note_html = markdown.markdown(
+            concept_note.content_markdown,
+            extensions=["tables", "fenced_code"]
+        )
+    
+    market_data = None
+    if phase_no == 3:
+        from services.stub_international_benchmarks import get_market_rates
+        market_data = get_market_rates()
+    
+    return templates.TemplateResponse(
+        "phase.html",
+        {
+            "request": request,
+            "case": case,
+            "docs": docs or CaseDocuments(),
+            "phase_no": phase_no,
+            "phase_info": PHASE_INFO,
+            "sector_profile": sector_profile,
+            "gap_items": gap_items,
+            "kpis": kpis,
+            "sustainability": sustainability,
+            "financial_options": financial_options,
+            "concept_note": concept_note,
+            "concept_note_html": concept_note_html,
+            "thinking_steps": thinking_steps,
+            "market_data": market_data,
+        }
+    )
+
+
+def _persist_phase1_results(case_id: int, result: dict, db: Session):
+    """Persist Phase 1 results to database."""
+    db.query(SectorProfile).filter(SectorProfile.case_id == case_id).delete()
+    db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).delete()
+    db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).delete()
+    
+    sector_profile = SectorProfile(case_id=case_id, **result["sector_profile"])
+    db.add(sector_profile)
+    
+    for gap in result["gap_items"]:
+        gap_item = GapAnalysisItem(case_id=case_id, **gap)
+        db.add(gap_item)
+    
+    for kpi in result["kpis"]:
+        kpi_item = BaselineKPI(case_id=case_id, **kpi)
+        db.add(kpi_item)
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    case.phase1_thinking = format_phase_thinking_json(result["thinking_steps"])
+    case.phase1_completed = True
+    
+    db.commit()
+
+
+def _persist_phase2_results(case_id: int, result: dict, db: Session):
+    """Persist Phase 2 results to database."""
+    db.query(SustainabilityProfile).filter(SustainabilityProfile.case_id == case_id).delete()
+    
+    sustainability = SustainabilityProfile(case_id=case_id, **result["sustainability_profile"])
+    db.add(sustainability)
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    case.phase2_thinking = format_phase_thinking_json(result["thinking_steps"])
+    case.phase2_completed = True
+    
+    db.commit()
+
+
+def _persist_phase3_results(case_id: int, result: dict, db: Session):
+    """Persist Phase 3 results to database."""
+    db.query(FinancialOption).filter(FinancialOption.case_id == case_id).delete()
+    
+    for opt in result["financial_options"]:
+        option = FinancialOption(case_id=case_id, **opt)
+        db.add(option)
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    case.phase3_thinking = format_phase_thinking_json(result["thinking_steps"])
+    case.phase3_completed = True
+    
+    db.commit()
+
+
+def _persist_phase4_results(case_id: int, result: dict, db: Session):
+    """Persist Phase 4 results to database."""
+    db.query(ConceptNote).filter(ConceptNote.case_id == case_id).delete()
+    
+    concept_note = ConceptNote(case_id=case_id, content_markdown=result["concept_note_content"])
+    db.add(concept_note)
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    case.phase4_thinking = format_phase_thinking_json(result["thinking_steps"])
+    case.phase4_completed = True
+    
+    db.commit()
+
+
+@app.post("/cases/{case_id}/phases/{phase_no}/run")
+async def run_phase(
+    case_id: int,
+    phase_no: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Execute only the requested phase, persist results, and redirect back 
+    to the same phase screen.
+    """
+    if phase_no < 1 or phase_no > 4:
+        raise HTTPException(status_code=400, detail="Invalid phase number")
+    
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    if not docs:
+        raise HTTPException(status_code=400, detail="No documents found for this case")
+    
+    try:
+        if phase_no == 1:
+            result = run_phase1_sectors_and_kpis(case, docs)
+            _persist_phase1_results(case_id, result, db)
+        
+        elif phase_no == 2:
+            if not case.phase1_completed:
+                raise HTTPException(status_code=400, detail="Phase 1 must be completed first")
+            result = run_phase2_sustainability(case, docs)
+            _persist_phase2_results(case_id, result, db)
+        
+        elif phase_no == 3:
+            if not case.phase2_completed:
+                raise HTTPException(status_code=400, detail="Phase 2 must be completed first")
+            result = run_phase3_financial_options(case, docs)
+            _persist_phase3_results(case_id, result, db)
+        
+        elif phase_no == 4:
+            if not case.phase3_completed:
+                raise HTTPException(status_code=400, detail="Phase 3 must be completed first")
+            
+            sector_profile = db.query(SectorProfile).filter(SectorProfile.case_id == case_id).first()
+            gap_items = db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).all()
+            kpis = db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).all()
+            financial_options = db.query(FinancialOption).filter(
+                FinancialOption.case_id == case_id
+            ).all()
+            sustainability = db.query(SustainabilityProfile).filter(
+                SustainabilityProfile.case_id == case_id
+            ).first()
+            
+            sector_data = {
+                "fleet_total": sector_profile.fleet_total if sector_profile else None,
+                "fleet_diesel": sector_profile.fleet_diesel if sector_profile else None,
+                "fleet_hybrid": sector_profile.fleet_hybrid if sector_profile else None,
+                "fleet_electric": sector_profile.fleet_electric if sector_profile else None,
+                "depots": sector_profile.depots if sector_profile else None,
+                "daily_ridership": sector_profile.daily_ridership if sector_profile else None,
+                "annual_opex_usd": sector_profile.annual_opex_usd if sector_profile else None,
+                "annual_co2_tons": sector_profile.annual_co2_tons if sector_profile else None,
+            }
+            
+            gap_items_list = [{
+                "indicator": g.indicator,
+                "kenya_value": g.kenya_value,
+                "benchmark_city": g.benchmark_city,
+                "benchmark_value": g.benchmark_value,
+                "gap_delta": g.gap_delta,
+                "comparability": g.comparability,
+                "comment": g.comment,
+            } for g in gap_items]
+            
+            kpis_list = [{
+                "name": k.name,
+                "baseline_value": k.baseline_value,
+                "unit": k.unit,
+                "target_value": k.target_value,
+                "category": k.category,
+                "notes": k.notes,
+            } for k in kpis]
+            
+            options_list = [{
+                "name": o.name,
+                "instrument_type": o.instrument_type,
+                "currency": o.currency,
+                "tenor_years": o.tenor_years,
+                "grace_period_years": o.grace_period_years,
+                "all_in_rate_bps": o.all_in_rate_bps,
+                "principal_amount_usd": o.principal_amount_usd,
+                "repayment_score": o.repayment_score,
+                "rate_score": o.rate_score,
+                "total_score": o.total_score,
+                "pros": o.pros,
+                "cons": o.cons,
+            } for o in financial_options]
+            
+            sustainability_data = {
+                "category": sustainability.category if sustainability else None,
+                "co2_reduction_tons": sustainability.co2_reduction_tons if sustainability else None,
+                "pm25_reduction": sustainability.pm25_reduction if sustainability else None,
+                "accessibility_notes": sustainability.accessibility_notes if sustainability else None,
+                "policy_alignment_notes": sustainability.policy_alignment_notes if sustainability else None,
+                "key_risks": sustainability.key_risks if sustainability else None,
+                "mitigations": sustainability.mitigations if sustainability else None,
+            }
+            
+            result = run_phase4_concept_note(
+                case, docs,
+                sector_data, gap_items_list, kpis_list,
+                options_list, sustainability_data
+            )
+            _persist_phase4_results(case_id, result, db)
+        
+        return RedirectResponse(url=f"/cases/{case_id}/phases/{phase_no}", status_code=302)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/cases/{case_id}/reset_phases")
+async def reset_phases(case_id: int, db: Session = Depends(get_db)):
+    """Reset all phases for a case to allow re-running."""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    case.phase1_completed = False
+    case.phase2_completed = False
+    case.phase3_completed = False
+    case.phase4_completed = False
+    case.phase1_thinking = None
+    case.phase2_thinking = None
+    case.phase3_thinking = None
+    case.phase4_thinking = None
+    
+    db.query(SectorProfile).filter(SectorProfile.case_id == case_id).delete()
+    db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).delete()
+    db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).delete()
+    db.query(FinancialOption).filter(FinancialOption.case_id == case_id).delete()
+    db.query(SustainabilityProfile).filter(SustainabilityProfile.case_id == case_id).delete()
+    db.query(ConceptNote).filter(ConceptNote.case_id == case_id).delete()
+    
+    db.commit()
+    
+    return RedirectResponse(url=f"/cases/{case_id}/phases/1", status_code=302)
 
 
 if __name__ == "__main__":
