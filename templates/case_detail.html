@@ -277,25 +277,6 @@
                 <dd>{{ case.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
             </dl>
         </div>
-        
-        {% if case.status == 'IN_REVIEW' %}
-        <div class="card">
-            <h3>OPSCOMM Decision</h3>
-            <form action="/cases/{{ case.id }}/decision" method="post" class="form">
-                <div class="form-group">
-                    <label class="radio-option">
-                        <input type="radio" name="decision" value="approve" required>
-                        <span class="radio-label approve">Approve - Proceed to Next Phase</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="decision" value="reject">
-                        <span class="radio-label reject">Reject - Archive Case</span>
-                    </label>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">Submit Decision</button>
-            </form>
-        </div>
-        {% endif %}
     </div>
 </div>
 
