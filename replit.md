@@ -95,7 +95,7 @@ static/
 - **Two-Column Layout**: Sidebar with vertical progress bar
 - **Interleaved Thinking + Outputs**: Single vertical flow where each step's reasoning streams in, associated output appears beneath, and reasoning auto-collapses with toggle button
 - **Collapsible Agent Reasoning**: Reasoning blocks collapse after output reveal, expandable via "Show reasoning" button
-- **Sources Metadata**: Each thinking step shows sources (uploaded documents + assumed verification sources)
+- **Sources Metadata**: Each thinking step shows sources (website-only verification URLs), and output tables display verification sources underneath
 - **Wizard Navigation Footer**: Always-visible navigation at bottom of phase pages
 - **Interactive Financial Table**: Clickable rows with detail drawer showing pros/cons
 - **Toast Notifications**: Visual feedback on phase completion
@@ -177,6 +177,14 @@ static/
   - Graceful handling of 0/N/A values in templates
   - allow_zero parameter for fields like fleet_electric where 0 is meaningful
   - Formats numbers with thousands separators
+- **Enhanced Sources Metadata**:
+  - Website-only verification URLs (no internal document references)
+  - Canonical mock sources defined as constants in orchestrator (PHASE1_STEP1_SOURCES, etc.)
+  - Sources displayed under each thinking step AND under each output table/card
+  - Phase 1: Kenya Ministry of Transport, NaMATA, NTSA, IEA, World Bank, C40 Cities, Kenya National Bureau of Statistics
+  - Phase 2: NEMA, Kenya Climate Change Directorate, EBRD Environmental and Social Policy
+  - Phase 3: Central Bank of Kenya, Ministry of National Treasury, African Development Bank
+  - Phase 4: EBRD, Ministry of Roads and Transport, Kenya Vision 2030
 
 ## Future Enhancements
 - Replace deterministic agents with LLM integration
