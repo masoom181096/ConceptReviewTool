@@ -35,15 +35,17 @@ utils/                  # Utility modules
 
 templates/              # Jinja2 HTML templates
   base.html
-  intake.html                # Email-first intake page
-  case_new.html              # Blank case creation
-  case_new_from_intake.html  # Case creation from parsed email
+  intake.html                # Email-first intake page (Screen 1)
+  case_setup.html            # Case setup & document upload (Screen 2)
+  case_review.html           # Unified agent execution & approval (Screen 3)
+  case_new.html              # Blank case creation (legacy)
+  case_new_from_intake.html  # Case creation from parsed email (legacy)
   cases_list.html
-  case_detail.html           # Case overview with phased workflow entry
-  phase.html                 # Multi-phase review screen (all 4 phases)
+  case_detail.html           # Case overview with phased workflow entry (legacy)
+  phase.html                 # Multi-phase review screen (legacy)
   _progress_bar.html         # Progress bar macro for phase tracking
   concept_note.html
-  review_concept_note.html   # Review & approve concept note
+  review_concept_note.html   # Review & approve concept note (legacy)
 
 static/
   styles.css            # CSS styling
@@ -63,16 +65,30 @@ static/
 7. **SustainabilityProfile** - ESG category and environmental metrics
 8. **ConceptNote** - Generated Markdown document
 
-## Workflow (4-Phase Sequential)
-1. **Email-First Intake**: Paste client email/MoM on the home page
-2. **Pre-filled Case Creation**: System extracts project name, country from email
-3. **Upload Documents**: Only Sector Profile + Sustainability docs required
-4. **Multi-Phase Concept Review**:
-   - **Phase 1 - Sector & KPIs**: Parse sector profile, compare benchmarks, generate KPIs
-   - **Phase 2 - Sustainability**: Assess E&S category, emissions reduction, risk analysis
-   - **Phase 3 - Financial Options**: Generate 3 financing structures with 60/40 scoring
-   - **Phase 4 - Concept Note**: Assemble comprehensive draft document
-5. **Review & Approve**: Select financial option and approve/reject case
+## Workflow (3-Screen Flow)
+The application uses a streamlined 3-screen flow:
+
+**Screen 1 - Intake (`/intake`)**:
+- Paste client email/MoM text
+- System extracts project name, country, sector from communication
+- Creates case with status='DRAFT'
+- Redirects to Screen 2
+
+**Screen 2 - Case Setup (`/cases/{id}/setup`)**:
+- Review and edit parsed project details
+- Upload required documents: Sector Profile + Sustainability
+- Sets case status='READY_FOR_ANALYSIS'
+- Redirects to Screen 3
+
+**Screen 3 - Unified Review (`/cases/{id}/review`)**:
+- All 4 phases execute sequentially on one page:
+  - **Phase 1 - Sector & KPIs**: Parse sector profile, compare benchmarks, generate KPIs
+  - **Phase 2 - Sustainability**: Assess E&S category, emissions reduction, risk analysis
+  - **Phase 3 - Financial Options**: Generate 3 financing structures with 60/40 scoring
+  - **Phase 4 - Concept Note**: Assemble comprehensive draft document
+- Progress bar shows phase completion status
+- Thinking + outputs interleaved in one continuous flow
+- Approval section at the end: select financial option and approve/reject case
 
 ## Financial Scoring (60/40 Rule)
 - **60%**: Repayment capacity (DSCR, FX risk, debt ratios)
@@ -110,6 +126,17 @@ static/
 - **Phase Reset**: Reset all phases to re-run the analysis
 - **Responsive Design**: Mobile-friendly with stacked layout at 900px
 - **Local-Runnable**: No external APIs or Replit-specific code
+
+## Recent Changes (Jan 2025)
+- **3-Screen Flow Refactor**:
+  - Consolidated multi-page flow into 3 streamlined screens
+  - Screen 1 (Intake): Paste email/MoM → Create DRAFT case → Redirect to Setup
+  - Screen 2 (Setup): Edit case info + Upload documents → READY_FOR_ANALYSIS → Redirect to Review
+  - Screen 3 (Review): Run all 4 phases on one page with progress bar + Approve/Reject
+  - New routes: GET/POST /cases/{id}/setup, GET /cases/{id}/review, POST /cases/{id}/decision
+  - New templates: case_setup.html, case_review.html
+  - JavaScript orchestrator runs phases 1→4 sequentially with typewriter streaming
+  - Status flow: DRAFT → READY_FOR_ANALYSIS → APPROVED/REJECTED
 
 ## Recent Changes (Dec 2024)
 - **Multi-Phase Workflow Implementation**:
