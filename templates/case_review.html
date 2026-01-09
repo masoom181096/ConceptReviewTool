@@ -1,0 +1,691 @@
+{% extends "base.html" %}
+
+{% macro display_val(value, suffix='', allow_zero=false) %}
+  {% if value is not none and (value != 0 or allow_zero) %}
+    {% if value is number %}
+      {{ "{:,}".format(value|int) }}{% if suffix %} {{ suffix }}{% endif %}
+    {% else %}
+      {{ value }}{% if suffix %} {{ suffix }}{% endif %}
+    {% endif %}
+  {% else %}
+    —
+  {% endif %}
+{% endmacro %}
+
+{% block title %}Concept Review - {{ case.name }} | EBRD Concept Review Tool{% endblock %}
+
+{% block content %}
+<div class="review-layout">
+    <div class="review-sidebar">
+        <div class="case-summary-card">
+            <h4>{{ case.name }}</h4>
+            <p class="case-meta">{{ case.country }} | {{ case.sector }}</p>
+            <span class="status-badge status-{{ case.status|lower }}">{{ case.status }}</span>
+        </div>
+        
+        <div class="phase-progress-card">
+            <h4>Analysis Progress</h4>
+            <div class="phase-progress-list">
+                <div class="phase-item" data-phase="1" id="phase-1-status">
+                    <div class="phase-indicator {% if case.phase1_completed %}completed{% endif %}">
+                        {% if case.phase1_completed %}
+                            <span class="check-icon">✓</span>
+                        {% else %}
+                            <span class="phase-num">1</span>
+                        {% endif %}
+                    </div>
+                    <div class="phase-info">
+                        <span class="phase-title">Sector Profile & KPIs</span>
+                        <span class="phase-status" id="phase-1-label">
+                            {% if case.phase1_completed %}Completed{% else %}Pending{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="phase-item" data-phase="2" id="phase-2-status">
+                    <div class="phase-indicator {% if case.phase2_completed %}completed{% endif %}">
+                        {% if case.phase2_completed %}
+                            <span class="check-icon">✓</span>
+                        {% else %}
+                            <span class="phase-num">2</span>
+                        {% endif %}
+                    </div>
+                    <div class="phase-info">
+                        <span class="phase-title">Sustainability</span>
+                        <span class="phase-status" id="phase-2-label">
+                            {% if case.phase2_completed %}Completed{% else %}Pending{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="phase-item" data-phase="3" id="phase-3-status">
+                    <div class="phase-indicator {% if case.phase3_completed %}completed{% endif %}">
+                        {% if case.phase3_completed %}
+                            <span class="check-icon">✓</span>
+                        {% else %}
+                            <span class="phase-num">3</span>
+                        {% endif %}
+                    </div>
+                    <div class="phase-info">
+                        <span class="phase-title">Financial Options</span>
+                        <span class="phase-status" id="phase-3-label">
+                            {% if case.phase3_completed %}Completed{% else %}Pending{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="phase-item" data-phase="4" id="phase-4-status">
+                    <div class="phase-indicator {% if case.phase4_completed %}completed{% endif %}">
+                        {% if case.phase4_completed %}
+                            <span class="check-icon">✓</span>
+                        {% else %}
+                            <span class="phase-num">4</span>
+                        {% endif %}
+                    </div>
+                    <div class="phase-info">
+                        <span class="phase-title">Concept Note</span>
+                        <span class="phase-status" id="phase-4-label">
+                            {% if case.phase4_completed %}Completed{% else %}Pending{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="review-main">
+        <div class="review-header">
+            <h2>Concept Review</h2>
+            <p class="subtitle">Step 3 of 3 – Agent Analysis & Approval</p>
+        </div>
+        
+        <div id="analysis-container">
+            <div id="thinking-container"></div>
+            
+            <div id="phase-1-outputs" class="phase-outputs hidden">
+                <div class="card">
+                    <h3>Phase 1: Sector Profile & KPIs</h3>
+                    <div id="sector-profile-output"></div>
+                    <div id="gap-analysis-output"></div>
+                    <div id="kpis-output"></div>
+                </div>
+            </div>
+            
+            <div id="phase-2-outputs" class="phase-outputs hidden">
+                <div class="card">
+                    <h3>Phase 2: Sustainability Assessment</h3>
+                    <div id="sustainability-output"></div>
+                </div>
+            </div>
+            
+            <div id="phase-3-outputs" class="phase-outputs hidden">
+                <div class="card">
+                    <h3>Phase 3: Financial Options</h3>
+                    <div id="market-data-output"></div>
+                    <div id="financial-options-output"></div>
+                </div>
+            </div>
+            
+            <div id="phase-4-outputs" class="phase-outputs hidden">
+                <div class="card">
+                    <h3>Phase 4: Concept Note</h3>
+                    <div id="concept-note-output"></div>
+                </div>
+            </div>
+        </div>
+        
+        {% if case.phase1_completed and sector_profile %}
+        <div class="card">
+            <h3>Phase 1: Sector Profile & KPIs</h3>
+            <table class="data-table">
+                <tr><th>Total Fleet</th><td>{{ display_val(sector_profile.fleet_total, "buses") }}</td></tr>
+                <tr><th>Diesel Buses</th><td>{{ display_val(sector_profile.fleet_diesel) }}</td></tr>
+                <tr><th>Hybrid Buses</th><td>{{ display_val(sector_profile.fleet_hybrid) }}</td></tr>
+                <tr><th>Electric Buses</th><td>{{ display_val(sector_profile.fleet_electric, '', true) }}</td></tr>
+                <tr><th>Daily Ridership</th><td>{{ display_val(sector_profile.daily_ridership, "passengers/day") }}</td></tr>
+            </table>
+            
+            {% if gap_items %}
+            <h4 style="margin-top: 1.5rem;">Gap Analysis</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Indicator</th>
+                        <th>{{ case.country }} Value</th>
+                        <th>Benchmark</th>
+                        <th>Gap</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gap in gap_items %}
+                    <tr>
+                        <td>{{ gap.indicator }}</td>
+                        <td>{{ gap.kenya_value or '—' }}</td>
+                        <td>{{ gap.benchmark_value or '—' }}</td>
+                        <td>{{ gap.gap_delta or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+            
+            {% if kpis %}
+            <h4 style="margin-top: 1.5rem;">Baseline KPIs</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>KPI</th>
+                        <th>Baseline</th>
+                        <th>Target</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kpi in kpis %}
+                    <tr>
+                        <td>{{ kpi.name }}</td>
+                        <td>{{ kpi.baseline_value or '—' }}</td>
+                        <td>{{ kpi.target_value or '—' }}</td>
+                        <td>{{ kpi.unit or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if case.phase2_completed and sustainability %}
+        <div class="card">
+            <h3>Phase 2: Sustainability Assessment</h3>
+            <table class="data-table">
+                <tr>
+                    <th>E&S Category</th>
+                    <td><span class="category-badge category-{{ sustainability.category }}">Category {{ sustainability.category }}</span></td>
+                </tr>
+                <tr><th>CO2 Reduction</th><td>{{ display_val(sustainability.co2_reduction_tons, "tons/year") }}</td></tr>
+                <tr><th>PM2.5 Reduction</th><td>{{ sustainability.pm25_reduction or '—' }}</td></tr>
+            </table>
+            <div class="sustainability-details">
+                <p><strong>Key Risks:</strong> {{ sustainability.key_risks or '—' }}</p>
+                <p><strong>Mitigations:</strong> {{ sustainability.mitigations or '—' }}</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if case.phase3_completed and financial_options %}
+        <div class="card">
+            <h3>Phase 3: Financial Options</h3>
+            {% if market_data %}
+            <table class="data-table compact">
+                <tr><th>EUR 10Y Swap</th><td>{{ market_data.eur_swap_10y_pct }}%</td></tr>
+                <tr><th>Green Bond Spread</th><td>{{ market_data.green_bond_spread_10y_pct }}%</td></tr>
+                <tr><th>All-in Green Rate</th><td>{{ market_data.all_in_green_rate_pct }}%</td></tr>
+            </table>
+            {% endif %}
+            
+            <h4 style="margin-top: 1.5rem;">Financing Options</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Option</th>
+                        <th>Structure</th>
+                        <th>Tenor/Grace</th>
+                        <th>Rate</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for opt in financial_options %}
+                    <tr>
+                        <td><strong>Option {{ 'ABC'[loop.index0] if loop.index0 < 3 else loop.index }}</strong></td>
+                        <td>{{ opt.name }}</td>
+                        <td>{{ opt.tenor_years or '—' }}y / {{ opt.grace_period_years or '—' }}y</td>
+                        <td>{% if opt.all_in_rate_bps %}{{ (opt.all_in_rate_bps / 100)|round(2) }}%{% else %}—{% endif %}</td>
+                        <td><strong>{{ opt.total_score|round(1) if opt.total_score else '—' }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        {% if case.phase4_completed and concept_note_html %}
+        <div class="card concept-note-preview">
+            <h3>Phase 4: Concept Note Draft</h3>
+            <div class="concept-note-content">
+                {{ concept_note_html|safe }}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% set all_phases_complete = case.phase1_completed and case.phase2_completed and case.phase3_completed and case.phase4_completed %}
+        
+        <div id="approval-section" class="card {% if not all_phases_complete %}hidden{% endif %}">
+            <h3>Review Decision</h3>
+            <p class="help-text">Select a financing option and approve or reject this concept note.</p>
+            
+            {% if error_message %}
+            <div class="error-message" style="background-color: #ffdddd; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                {{ error_message }}
+            </div>
+            {% endif %}
+            
+            <form action="/cases/{{ case.id }}/review/decision" method="post" id="decision-form">
+                <div class="financial-options-selection">
+                    <h4>Select Financial Instrument</h4>
+                    {% for opt in financial_options %}
+                    {% set label = 'ABC'[loop.index0] if loop.index0 < 3 else loop.index %}
+                    <label class="radio-option">
+                        <input type="radio" name="selected_option_id" value="{{ opt.id }}" />
+                        <span class="option-label">
+                            <strong>Option {{ label }} - {{ opt.name }}</strong>
+                            <span class="option-details">Tenor: {{ opt.tenor_years }}y | Grace: {{ opt.grace_period_years }}y | Rate: {{ (opt.all_in_rate_bps / 100)|round(2) }}% | Score: {{ opt.total_score|round(1) }}</span>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                
+                <div class="decision-actions">
+                    <button type="submit" name="decision" value="approve" id="approve-btn" class="btn btn-primary btn-large" disabled>
+                        Approve
+                    </button>
+                    <button type="submit" name="decision" value="reject" class="btn btn-danger btn-large">
+                        Reject
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const caseId = {{ case.id }};
+const caseStatus = "{{ case.status }}";
+const phase1Completed = {{ 'true' if case.phase1_completed else 'false' }};
+const phase2Completed = {{ 'true' if case.phase2_completed else 'false' }};
+const phase3Completed = {{ 'true' if case.phase3_completed else 'false' }};
+const phase4Completed = {{ 'true' if case.phase4_completed else 'false' }};
+
+function typewriterEffect(element, text, speed = 10) {
+    return new Promise(resolve => {
+        let i = 0;
+        element.textContent = '';
+        function type() {
+            if (i < text.length) {
+                element.textContent += text.charAt(i);
+                i++;
+                setTimeout(type, speed);
+            } else {
+                resolve();
+            }
+        }
+        type();
+    });
+}
+
+function addThinkingStep(step) {
+    const container = document.getElementById('thinking-container');
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'thinking-step-card';
+    stepDiv.innerHTML = `
+        <div class="thinking-step-header">
+            <div class="step-header-left">
+                <span class="step-badge">Step ${step.step}</span>
+                <strong>${step.title}</strong>
+            </div>
+            <button type="button" class="toggle-reasoning-btn" data-expanded="false">Show reasoning</button>
+        </div>
+        <div class="thinking-step-body" style="display: none;">
+            <div class="step-description"></div>
+        </div>
+    `;
+    container.appendChild(stepDiv);
+    
+    const toggleBtn = stepDiv.querySelector('.toggle-reasoning-btn');
+    const bodyDiv = stepDiv.querySelector('.thinking-step-body');
+    const descDiv = stepDiv.querySelector('.step-description');
+    
+    toggleBtn.addEventListener('click', function() {
+        const expanded = this.dataset.expanded === 'true';
+        this.dataset.expanded = (!expanded).toString();
+        this.textContent = expanded ? 'Show reasoning' : 'Hide reasoning';
+        bodyDiv.style.display = expanded ? 'none' : 'block';
+    });
+    
+    return typewriterEffect(descDiv, step.description, 5);
+}
+
+function updatePhaseStatus(phaseNo, status) {
+    const phaseItem = document.getElementById(`phase-${phaseNo}-status`);
+    const indicator = phaseItem.querySelector('.phase-indicator');
+    const label = document.getElementById(`phase-${phaseNo}-label`);
+    
+    if (status === 'running') {
+        indicator.classList.add('running');
+        indicator.innerHTML = '<span class="spinner"></span>';
+        label.textContent = 'Running...';
+    } else if (status === 'completed') {
+        indicator.classList.remove('running');
+        indicator.classList.add('completed');
+        indicator.innerHTML = '<span class="check-icon">✓</span>';
+        label.textContent = 'Completed';
+    }
+}
+
+async function runPhase(phaseNo) {
+    updatePhaseStatus(phaseNo, 'running');
+    
+    try {
+        const response = await fetch(`/api/cases/${caseId}/phases/${phaseNo}/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'ok') {
+            for (const step of data.thinking_steps || []) {
+                await addThinkingStep(step);
+            }
+            updatePhaseStatus(phaseNo, 'completed');
+            return true;
+        } else {
+            console.error('Phase error:', data.detail);
+            return false;
+        }
+    } catch (err) {
+        console.error('Error running phase:', err);
+        return false;
+    }
+}
+
+async function runAllPhases() {
+    const startPhase = !phase1Completed ? 1 : 
+                       !phase2Completed ? 2 : 
+                       !phase3Completed ? 3 : 
+                       !phase4Completed ? 4 : 0;
+    
+    if (startPhase === 0) {
+        document.getElementById('approval-section').classList.remove('hidden');
+        return;
+    }
+    
+    for (let phase = startPhase; phase <= 4; phase++) {
+        const success = await runPhase(phase);
+        if (!success) break;
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    document.getElementById('approval-section').classList.remove('hidden');
+    window.location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const approveBtn = document.getElementById('approve-btn');
+    const radios = document.querySelectorAll('input[name="selected_option_id"]');
+    
+    function updateApproveState() {
+        let anyChecked = false;
+        radios.forEach(r => { if (r.checked) anyChecked = true; });
+        if (approveBtn) approveBtn.disabled = !anyChecked;
+    }
+    
+    radios.forEach(r => r.addEventListener('change', updateApproveState));
+    updateApproveState();
+    
+    if (caseStatus === 'READY_FOR_ANALYSIS') {
+        runAllPhases();
+    }
+});
+</script>
+
+<style>
+.review-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.review-sidebar {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+}
+
+.case-summary-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.case-summary-card h4 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.case-meta {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+
+.phase-progress-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+}
+
+.phase-progress-card h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+}
+
+.phase-progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.phase-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.phase-indicator {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--light-bg);
+    border: 2px solid var(--border-color);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.phase-indicator.completed {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.phase-indicator.running {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.phase-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.phase-title {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.phase-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.review-main {
+    min-width: 0;
+}
+
+.review-header {
+    margin-bottom: 1.5rem;
+}
+
+.review-header h2 {
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.phase-outputs {
+    margin-bottom: 1.5rem;
+}
+
+.thinking-step-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.thinking-step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.step-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.step-badge {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.toggle-reasoning-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.thinking-step-body {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.step-description {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.financial-options-selection {
+    margin-bottom: 1.5rem;
+}
+
+.financial-options-selection h4 {
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.radio-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.radio-option:hover {
+    border-color: var(--primary-color);
+}
+
+.radio-option input[type="radio"] {
+    margin-top: 0.25rem;
+}
+
+.option-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.option-details {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.decision-actions {
+    display: flex;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid white;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.check-icon {
+    font-size: 14px;
+}
+
+.status-draft {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.status-ready_for_analysis {
+    background-color: var(--info-color);
+    color: white;
+}
+
+.status-rejected {
+    background-color: var(--danger-color);
+    color: white;
+}
+</style>
+{% endblock %}

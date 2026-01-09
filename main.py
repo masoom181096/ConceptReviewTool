@@ -59,6 +59,12 @@ async def favicon():
 
 
 @app.get("/", response_class=HTMLResponse)
+async def root_page(request: Request):
+    """Redirect to intake page."""
+    return RedirectResponse(url="/intake", status_code=302)
+
+
+@app.get("/intake", response_class=HTMLResponse)
 async def intake_page(request: Request):
     """Display the email-first intake page."""
     return templates.TemplateResponse(
@@ -70,23 +76,30 @@ async def intake_page(request: Request):
 @app.post("/intake", response_class=HTMLResponse)
 async def process_intake(
     request: Request,
-    email_text: str = Form(...)
+    email_text: str = Form(...),
+    db: Session = Depends(get_db)
 ):
-    """Process email text and show pre-filled case creation form."""
+    """Process email text, create case, and redirect to setup page."""
     result = parse_need_assessment(email_text)
     
-    return templates.TemplateResponse(
-        "case_new_from_intake.html",
-        {
-            "request": request,
-            "email_text": email_text,
-            "project_name": result.get("project_name"),
-            "country": result.get("country"),
-            "sector": "Urban Transport",
-            "requested_amount": result.get("requested_amount_usd"),
-            "problem_summary": result.get("problem_summary")
-        }
+    case = Case(
+        name=result.get("project_name", "New Project"),
+        country=result.get("country", ""),
+        sector="Urban Transport",
+        status="DRAFT"
     )
+    db.add(case)
+    db.commit()
+    db.refresh(case)
+    
+    docs = CaseDocuments(
+        case_id=case.id,
+        need_assessment_text=email_text
+    )
+    db.add(docs)
+    db.commit()
+    
+    return RedirectResponse(url=f"/cases/{case.id}/setup", status_code=302)
 
 
 @app.post("/cases/create_from_intake", response_class=HTMLResponse)
@@ -264,6 +277,68 @@ async def update_documents(
     return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
 
 
+@app.get("/cases/{case_id}/setup", response_class=HTMLResponse)
+async def case_setup_page(
+    request: Request,
+    case_id: int,
+    db: Session = Depends(get_db)
+):
+    """Display the case setup page (Screen 2) for uploading documents."""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    
+    return templates.TemplateResponse(
+        "case_setup.html",
+        {
+            "request": request,
+            "case": case,
+            "docs": docs or CaseDocuments()
+        }
+    )
+
+
+@app.post("/cases/{case_id}/setup", response_class=HTMLResponse)
+async def submit_case_setup(
+    request: Request,
+    case_id: int,
+    name: str = Form(...),
+    country: str = Form(...),
+    sector: str = Form(...),
+    sector_profile_file: Optional[UploadFile] = File(None),
+    sustainability_file: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    """Process case setup form and redirect to review page."""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    
+    case.name = name
+    case.country = country
+    case.sector = sector
+    case.status = "READY_FOR_ANALYSIS"
+    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    if not docs:
+        docs = CaseDocuments(case_id=case_id)
+        db.add(docs)
+    
+    if sector_profile_file and sector_profile_file.filename:
+        docs.sector_profile_text = extract_text_from_upload(sector_profile_file)
+        docs.sector_profile_filename = sector_profile_file.filename
+    
+    if sustainability_file and sustainability_file.filename:
+        docs.sustainability_text = extract_text_from_upload(sustainability_file)
+        docs.sustainability_filename = sustainability_file.filename
+    
+    db.commit()
+    
+    return RedirectResponse(url=f"/cases/{case.id}/review", status_code=302)
+
+
 def _persist_concept_review_results(case_id: int, result: dict, db: Session):
     """
     Helper function to persist concept review results to the database.
@@ -415,7 +490,7 @@ async def submit_decision(
     if decision == "approve":
         case.status = "APPROVED"
     elif decision == "reject":
-        case.status = "ARCHIVED"
+        case.status = "REJECTED"
     else:
         raise HTTPException(status_code=400, detail="Invalid decision")
     
@@ -425,42 +500,73 @@ async def submit_decision(
 
 
 @app.get("/cases/{case_id}/review", response_class=HTMLResponse)
-async def review_concept_note(
+async def unified_review_page(
     request: Request,
     case_id: int,
     error_message: str = None,
     db: Session = Depends(get_db)
 ):
     """
-    Show the full Concept Note along with the three financial options
-    as radio buttons, and Approve/Reject buttons at the bottom.
+    Unified review page (Screen 3) that shows all phases and allows approval.
+    Auto-runs phases sequentially if status is READY_FOR_ANALYSIS.
     """
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     
-    concept_note = db.query(ConceptNote).filter(ConceptNote.case_id == case_id).first()
-    if not concept_note:
-        raise HTTPException(status_code=404, detail="Concept note not generated yet")
-    
+    docs = db.query(CaseDocuments).filter(CaseDocuments.case_id == case_id).first()
+    sector_profile = db.query(SectorProfile).filter(SectorProfile.case_id == case_id).first()
+    gap_items = db.query(GapAnalysisItem).filter(GapAnalysisItem.case_id == case_id).all()
+    kpis = db.query(BaselineKPI).filter(BaselineKPI.case_id == case_id).all()
     financial_options = db.query(FinancialOption).filter(
         FinancialOption.case_id == case_id
     ).order_by(FinancialOption.total_score.desc()).all()
+    sustainability = db.query(SustainabilityProfile).filter(
+        SustainabilityProfile.case_id == case_id
+    ).first()
+    concept_note = db.query(ConceptNote).filter(ConceptNote.case_id == case_id).first()
     
-    content_html = markdown.markdown(
-        concept_note.content_markdown or "",
-        extensions=["tables", "fenced_code"]
-    )
+    concept_note_html = None
+    if concept_note and concept_note.content_markdown:
+        concept_note_html = markdown.markdown(
+            concept_note.content_markdown,
+            extensions=["tables", "fenced_code"]
+        )
+    
+    from services.stub_international_benchmarks import get_market_rates
+    market_data = get_market_rates()
+    
+    phase_thinking = {}
+    for phase_no in [1, 2, 3, 4]:
+        thinking_field = getattr(case, f"phase{phase_no}_thinking", None)
+        if thinking_field:
+            try:
+                phase_thinking[phase_no] = json.loads(thinking_field)
+            except json.JSONDecodeError:
+                phase_thinking[phase_no] = None
     
     return templates.TemplateResponse(
-        "review_concept_note.html",
+        "case_review.html",
         {
             "request": request,
             "case": case,
-            "concept_note": concept_note,
-            "concept_note_html": content_html,
+            "docs": docs or CaseDocuments(),
+            "sector_profile": sector_profile,
+            "gap_items": gap_items,
+            "kpis": kpis,
             "financial_options": financial_options,
-            "error_message": error_message
+            "sustainability": sustainability,
+            "concept_note": concept_note,
+            "concept_note_html": concept_note_html,
+            "market_data": market_data,
+            "phase_thinking": phase_thinking,
+            "error_message": error_message,
+            "sector_profile_sources": SECTOR_PROFILE_VERIFICATION_SOURCES,
+            "gap_analysis_sources": GAP_ANALYSIS_VERIFICATION_SOURCES,
+            "kpi_sources": KPI_VERIFICATION_SOURCES,
+            "sustainability_sources": SUSTAINABILITY_VERIFICATION_SOURCES,
+            "market_data_sources": MARKET_DATA_VERIFICATION_SOURCES,
+            "concept_note_sources": CONCEPT_NOTE_VERIFICATION_SOURCES,
         }
     )
 
@@ -474,7 +580,7 @@ async def review_decision(
     db: Session = Depends(get_db)
 ):
     """
-    Handle approval/rejection of the Concept Note.
+    Handle approval/rejection from the unified review page.
     Approval requires a selected financial option.
     """
     case = db.query(Case).filter(Case.id == case_id).first()
@@ -483,26 +589,9 @@ async def review_decision(
     
     if decision == "approve":
         if selected_option_id is None:
-            concept_note = db.query(ConceptNote).filter(ConceptNote.case_id == case_id).first()
-            financial_options = db.query(FinancialOption).filter(
-                FinancialOption.case_id == case_id
-            ).order_by(FinancialOption.total_score.desc()).all()
-            
-            content_html = markdown.markdown(
-                concept_note.content_markdown or "",
-                extensions=["tables", "fenced_code"]
-            ) if concept_note else ""
-            
-            return templates.TemplateResponse(
-                "review_concept_note.html",
-                {
-                    "request": request,
-                    "case": case,
-                    "concept_note": concept_note,
-                    "concept_note_html": content_html,
-                    "financial_options": financial_options,
-                    "error_message": "Please select a financial instrument before approving."
-                }
+            return RedirectResponse(
+                url=f"/cases/{case_id}/review?error_message=Please+select+a+financial+instrument+before+approving.",
+                status_code=302
             )
         
         selected_option = db.query(FinancialOption).filter(
@@ -517,14 +606,14 @@ async def review_decision(
         case.status = "APPROVED"
     
     elif decision == "reject":
-        case.status = "ARCHIVED"
+        case.status = "REJECTED"
     
     else:
         raise HTTPException(status_code=400, detail="Invalid decision")
     
     db.commit()
     
-    return RedirectResponse(url=f"/cases/{case_id}", status_code=302)
+    return RedirectResponse(url="/cases", status_code=302)
 
 
 # =============================================================================

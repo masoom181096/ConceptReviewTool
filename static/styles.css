@@ -228,6 +228,21 @@ body {
     color: white;
 }
 
+.status-draft {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.status-ready_for_analysis {
+    background-color: var(--info-color);
+    color: white;
+}
+
+.status-rejected {
+    background-color: var(--danger-color);
+    color: white;
+}
+
 .form-group {
     margin-bottom: 1rem;
 }

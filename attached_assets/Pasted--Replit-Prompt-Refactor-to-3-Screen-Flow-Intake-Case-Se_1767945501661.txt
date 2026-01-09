@@ -1,0 +1,392 @@
+🔧 Replit Prompt – Refactor to 3-Screen Flow (Intake → Case Setup → Agent Execution & Approval)
+You are working on my FastAPI + Jinja2 app EBRD Concept Review Tool.
+CURRENT STATE (what you’ve already built, roughly):
+Case list + case overview page.
+Per-phase pages: /cases/{case_id}/phases/{phase_no} for phases 1–4.
+Each phase has:
+A sidebar progress bar.
+“Agent thinking” with step-by-step + typewriter streaming.
+Outputs (tables/cards) interleaved with steps, plus sources under each step & table.
+API endpoints like:
+POST /api/cases/{case_id}/phases/{phase_no}/run
+that execute each phase and return thinking_steps.
+A Concept Note approval screen where the user selects a financial instrument and approves/rejects the case.
+We now want to reduce the number of user interactions and restructure the UX into 3 major screens only:
+Screen 1 – Upload your MoM or E-mail content
+This is the intake of the initial request from Kenya (email / minutes of meeting).
+Screen 2 – Case creation page (with document upload)
+Here we confirm basic case metadata and upload the required documents (Sector Profile, Sustainability doc, etc.).
+Screen 3 – Agent Execution & Concept Note Review
+All 4 phases are executed sequentially on a single screen,
+A progress bar on the left shows completion status of each phase,
+Thinking + outputs are interleaved in one continuous flow,
+At the end, the user approves/rejects the Concept Note and the case status is updated accordingly.
+Please implement the following refactor.
+1. Screen 1 – MoM / Email Intake
+1.1 Route
+Create a new route for the intake screen, e.g.:
+@app.get("/intake")
+async def intake_form(request: Request):
+    return templates.TemplateResponse("intake.html", {"request": request})
+@app.post("/intake")
+async def submit_intake(request: Request, mom_text: str = Form(None), mom_file: UploadFile = File(None)):
+    """
+    - Accept either:
+      - Plain text pasted into a textarea (mom_text), or
+      - An uploaded EML/MSG file (mom_file) that we parse.
+    - Extract a summary and key fields needed to initialise the case:
+      - project_title
+      - country (Kenya)
+      - sector (e.g., Urban Transport / e-Mobility)
+      - client_name / counterpart
+      - estimated financing need (if present)
+    - Create a new Case record in the DB with status='Draft' or 'IntakeCompleted'.
+    - Persist the raw MoM/email as a CaseDocument if needed.
+    - Redirect to Screen 2: /cases/{case_id}/setup
+    """
+Implementation notes:
+Reuse any existing MoM/email parsing logic you already have.
+If mom_file is provided (EML/MSG), parse it and extract body + subject.
+Minimal required fields for Case at this point:
+name (from subject or a default like “Kenya e-bus Phase 1”),
+country = "Kenya",
+status = "Draft" or "IntakeCompleted".
+1.2 Template intake.html
+Simple, focused UX:
+Title: “Upload your MoM or E-mail content”
+Option A: textarea for pasting email/MoM text.
+Option B: file upload for EML/MSG.
+One primary button: “Continue to Case Setup”
+No need for progress bar here; this is step 0.
+2. Screen 2 – Case Creation & Document Upload
+This replaces the old “case detail + separate phase pages” flow. It’s where the user confirms the case metadata and uploads the key documents.
+2.1 Route
+Create a dedicated setup route:
+@app.get("/cases/{case_id}/setup")
+async def case_setup(request: Request, case_id: int):
+    """
+    Render the Case Setup page:
+    - Show summary from MoM/email (project name, country, sector, counterpart, requested amount).
+    - Allow editing of case name, sector, etc. (simple form inputs).
+    - Allow upload of:
+      - Sector Profile document (Word/PDF)
+      - Sustainability / Project Characteristics document
+      - (Optionally) any other support docs (Gap analysis, baseline KPIs) if you want.
+    """
+@app.post("/cases/{case_id}/setup")
+async def submit_case_setup(
+    request: Request,
+    case_id: int,
+    name: str = Form(...),
+    sector: str = Form(...),
+    requested_amount: float = Form(None),
+    sector_profile_file: UploadFile = File(...),
+    sustainability_file: UploadFile = File(...),
+):
+    """
+    - Update the Case with any edited metadata.
+    - Save the uploaded Sector Profile and Sustainability documents as CaseDocuments.
+    - Set case.status = 'ReadyForAnalysis' (or similar).
+    - Redirect to Screen 3: /cases/{case_id}/review
+    """
+2.2 Template case_setup.html
+Layout:
+Top: summary card with parsed info from MoM/email:
+Project Title, Country, Counterpart, estimated financing need (if detected).
+Form fields:
+Project Name (editable)
+Sector (dropdown or text)
+Requested Amount (editable, prefilled from MoM if parsed)
+Document upload fields:
+Sector Profile document (required)
+Sustainability / Project Characteristics document (required)
+Primary button: “Continue to Concept Review” → POST to /cases/{id}/setup, then redirect to Screen 3.
+You can show a small progress indicator at the top like:
+Step 2 of 3 – Case Setup & Document Upload
+No phase progress bar here; that comes on Screen 3.
+3. Screen 3 – Unified Agent Execution & Concept Note Review
+This replaces all per-phase pages and the separate approval screen. All 4 phases run on this single screen.
+3.1 Route
+Create a single review route:
+@app.get("/cases/{case_id}/review")
+async def review_case(request: Request, case_id: int):
+    """
+    - Render the unified agent execution & review page.
+    - Left side: progress bar showing Phase 1–4 and their completion status.
+    - Right side: one continuous flow of agent thinking + outputs.
+    - If phases have already been run, load existing outputs and show them.
+    - If not, JS will auto-run the phases sequentially using the existing /api endpoints.
+    """
+Also keep / add a final decision endpoint:
+@app.post("/cases/{case_id}/decision")
+async def decide_case(
+    case_id: int,
+    decision: str = Form(...),  # 'approve' or 'reject'
+    selected_option_id: int = Form(None),  # required if decision == 'approve'
+):
+    """
+    - If decision == 'approve':
+        - Require selected_option_id (ID of the chosen financial option).
+        - Mark that option as 'approved_option' on the Case.
+        - Set case.status = 'Approved' (or 'ConceptApproved').
+    - If decision == 'reject':
+        - Set case.status = 'Rejected'.
+    - Redirect back to /cases/{case_id}/review or to a case list, as you prefer.
+    """
+3.2 Layout of case_review.html
+This screen combines:
+Progress bar on the left (Phase 1–4).
+Agent thinking + outputs for all phases in one scrollable main area.
+At the bottom, the Concept Note preview with approval controls.
+Structure:
+<div class="layout">
+  <aside class="layout-sidebar">
+    <!-- Progress bar for phases 1–4 -->
+    <div class="phase-progress">
+      <!-- Use existing style, but now all on one page -->
+      <div class="phase-step" data-phase="1">Sector & KPIs</div>
+      <div class="phase-step" data-phase="2">Sustainability</div>
+      <div class="phase-step" data-phase="3">Financial Options</div>
+      <div class="phase-step" data-phase="4">Concept Note</div>
+    </div>
+    <!-- Case summary card -->
+    <div class="case-summary-card">
+      <h3>{{ case.name }}</h3>
+      <p>{{ case.country }} | {{ case.sector }}</p>
+      <p>Status: <span class="status-badge status-{{ case.status|lower }}">{{ case.status }}</span></p>
+    </div>
+  </aside>
+  <main class="layout-main">
+    <section id="thinking-outputs-container">
+      <!-- JS will append step cards & reveal output blocks for ALL phases here -->
+      <!-- Output blocks for each phase are defined here but start hidden -->
+      <!-- Phase 1 outputs -->
+      <div class="output-block" data-phase="1" data-step="1" id="output-sector-profile" style="display:none;">
+        <!-- Sector Profile table -->
+        <div class="output-sources">
+          <small>Sources (verification): {{ sector_profile_sources | join("; ") }}</small>
+        </div>
+      </div>
+      <div class="output-block" data-phase="1" data-step="2" id="output-gap-analysis" style="display:none;">
+        <!-- Gap Analysis table -->
+        <div class="output-sources">
+          <small>Sources (verification): {{ gap_analysis_sources | join("; ") }}</small>
+        </div>
+      </div>
+      <div class="output-block" data-phase="1" data-step="3" id="output-kpis" style="display:none;">
+        <!-- Baseline KPIs table -->
+        <div class="output-sources">
+          <small>Sources (verification): {{ kpi_sources | join("; ") }}</small>
+        </div>
+      </div>
+      <!-- Phase 2 outputs -->
+      <div class="output-block" data-phase="2" data-step="1" id="output-sustainability" style="display:none;">
+        <!-- Sustainability Profile -->
+        <div class="output-sources">
+          <small>Sources (verification): {{ sustainability_sources | join("; ") }}</small>
+        </div>
+      </div>
+      <!-- Phase 3 outputs -->
+      <div class="output-block" data-phase="3" data-step="1" id="output-market-and-options" style="display:none;">
+        <!-- Market data card + financial options table -->
+        <div class="output-sources">
+          <small>Sources (verification): {{ market_data_sources | join("; ") }}</small>
+        </div>
+      </div>
+      <!-- Phase 4 outputs (concept note preview) -->
+      <div class="output-block" data-phase="4" data-step="1" id="output-concept-note" style="display:none;">
+        <!-- Concept Note preview (rendered HTML from markdown) -->
+        <article class="concept-note">
+          {{ concept_note_html | safe }}
+        </article>
+        <div class="output-sources">
+          <small>Sources (verification): {{ concept_note_sources | join("; ") }}</small>
+        </div>
+      </div>
+    </section>
+    <!-- Final approval block (shown after Phase 4 completes) -->
+    <section id="approval-section" style="display:none; margin-top: 1.5rem;">
+      <h3>Review and approve Concept Note</h3>
+      <form method="post" action="/cases/{{ case.id }}/decision">
+        <div class="card">
+          <div class="card-body">
+            <p>Select a financial instrument to proceed with (required for approval):</p>
+            {% for opt in financial_options %}
+              <div class="radio-option">
+                <label>
+                  <input type="radio" name="selected_option_id" value="{{ opt.id }}">
+                  {{ opt.name }} – ${ "{:,.0f}".format(opt.principal_amount_usd) }} @ {{ (opt.all_in_rate_bps/100) | round(2) }}%
+                </label>
+              </div>
+            {% endfor %}
+            <div style="margin-top: 1rem;">
+              <button type="submit" name="decision" value="approve" class="btn-primary">
+                Approve Concept Note
+              </button>
+              <button type="submit" name="decision" value="reject" class="btn-secondary">
+                Reject Concept Note
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </section>
+  </main>
+</div>
+4. Sequentially auto-run all phases on Screen 3
+You already have:
+POST /api/cases/{id}/phases/{phase}/run that returns thinking_steps for one phase.
+JS that:
+Streams thinking steps with typewriter,
+Shows output blocks for that phase.
+Now we need to:
+On case_review.html, auto-run Phase 1 → Phase 2 → Phase 3 → Phase 4 in sequence when the page is first loaded (if not already done).
+Update the progress bar as each phase completes.
+Only at the end, reveal the approval section.
+4.1 JS orchestrator (front-end)
+In case_review.html (or a shared JS file), implement:
+<script>
+  (function() {
+    const caseId = "{{ case.id }}";
+    const stepsContainer = document.getElementById("thinking-outputs-container");
+    const approvalSection = document.getElementById("approval-section");
+    const phaseSteps = [1, 2, 3, 4];
+    function setPhaseStatus(phaseNo, status) {
+      // status: 'pending', 'running', 'completed'
+      const el = document.querySelector(`.phase-step[data-phase="${phaseNo}"]`);
+      if (!el) return;
+      el.classList.remove("phase-pending", "phase-running", "phase-completed");
+      el.classList.add(`phase-${status}`);
+    }
+    function typeText(element, fullText, charDelay, onComplete) {
+      element.textContent = "";
+      element.style.whiteSpace = "pre-line";
+      let i = 0;
+      function tick() {
+        if (i <= fullText.length) {
+          element.textContent = fullText.slice(0, i);
+          i++;
+          setTimeout(tick, charDelay);
+        } else if (typeof onComplete === "function") {
+          onComplete();
+        }
+      }
+      tick();
+    }
+    async function runPhase(phaseNo) {
+      setPhaseStatus(phaseNo, "running");
+      const response = await fetch(`/api/cases/${caseId}/phases/${phaseNo}/run`, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      if (!response.ok) throw new Error("Phase " + phaseNo + " failed");
+      const data = await response.json();
+      const steps = data.thinking_steps || [];
+      if (!steps.length) {
+        setPhaseStatus(phaseNo, "completed");
+        return;
+      }
+      // Render steps for this phase in sequence
+      let delay = 0;
+      const delayPerStep = 800;
+      const charDelay = 20;
+      await new Promise((resolvePhase) => {
+        steps.forEach((stepObj, idx) => {
+          const stepNumber = stepObj.step || (idx + 1);
+          const stepDiv = document.createElement("div");
+          stepDiv.classList.add("thinking-step-card");
+          stepDiv.dataset.phase = phaseNo;
+          stepDiv.dataset.step = stepNumber;
+          stepDiv.style.opacity = "0";
+          stepDiv.style.transform = "translateY(10px)";
+          const headerDiv = document.createElement("div");
+          headerDiv.classList.add("thinking-step-header");
+          headerDiv.innerHTML = `
+            <div class="header-main">
+              <span class="thinking-step-number">Phase ${phaseNo}, Step ${stepNumber}</span>
+              <span class="thinking-step-title">${stepObj.title || ""}</span>
+            </div>
+            <button type="button" class="toggle-reasoning-btn" data-expanded="true">Hide reasoning</button>
+          `;
+          const bodyDiv = document.createElement("div");
+          bodyDiv.classList.add("thinking-step-body");
+          const sourcesDiv = document.createElement("div");
+          sourcesDiv.classList.add("thinking-step-sources");
+          const sources = stepObj.sources || [];
+          if (Array.isArray(sources) && sources.length > 0) {
+            sourcesDiv.textContent = "Sources (verification): " + sources.join("; ");
+          }
+          stepDiv.appendChild(headerDiv);
+          stepDiv.appendChild(bodyDiv);
+          stepDiv.appendChild(sourcesDiv);
+          stepsContainer.appendChild(stepDiv);
+          // toggle
+          headerDiv.querySelector(".toggle-reasoning-btn").addEventListener("click", (e) => {
+            const btn = e.currentTarget;
+            const expanded = btn.getAttribute("data-expanded") === "true";
+            if (expanded) {
+              bodyDiv.style.display = "none";
+              btn.textContent = "Show reasoning";
+            } else {
+              bodyDiv.style.display = "block";
+              btn.textContent = "Hide reasoning";
+            }
+            btn.setAttribute("data-expanded", expanded ? "false" : "true");
+          });
+          const fullText = stepObj.description || "";
+          setTimeout(() => {
+            stepDiv.style.transition = "opacity 0.5s ease-in-out, transform 0.5s ease-in-out";
+            stepDiv.style.opacity = "1";
+            stepDiv.style.transform = "translateY(0)";
+            typeText(bodyDiv, fullText, charDelay, () => {
+              // Reveal output-block(s) for this phase+step
+              document.querySelectorAll(`.output-block[data-phase="${phaseNo}"][data-step="${stepNumber}"]`)
+                .forEach(o => { o.style.display = "block"; });
+              // Collapse reasoning by default after typing
+              bodyDiv.style.display = "none";
+              const btn = headerDiv.querySelector(".toggle-reasoning-btn");
+              if (btn) {
+                btn.textContent = "Show reasoning";
+                btn.setAttribute("data-expanded", "false");
+              }
+              if (idx === steps.length - 1) {
+                // Last step of this phase has finished rendering
+                setPhaseStatus(phaseNo, "completed");
+                resolvePhase();
+              }
+            });
+          }, delay);
+          delay += delayPerStep;
+        });
+      });
+    }
+    async function runAllPhasesSequentially() {
+      for (const p of phaseSteps) {
+        await runPhase(p);
+      }
+      // After all phases complete, show approval section
+      if (approvalSection) {
+        approvalSection.style.display = "block";
+        approvalSection.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+    // Auto-run all phases when the screen is loaded, if case is ReadyForAnalysis
+    document.addEventListener("DOMContentLoaded", () => {
+      {% if case.status in ['ReadyForAnalysis', 'InAnalysis'] %}
+        runAllPhasesSequentially().catch(err => console.error(err));
+      {% endif %}
+    });
+  })();
+</script>
+NOTE: If phases may have been run previously, you can:
+Either skip auto-run when case.status in ['Approved', 'Rejected'],
+Or add a “Re-run full Concept Review” button that calls runAllPhasesSequentially() again after clearing the old flow.
+5. Wire case status to this new flow
+After MoM/Email intake (Screen 1) → set case.status = 'Draft' or 'IntakeCompleted'.
+After case setup and document upload (Screen 2) → set case.status = 'ReadyForAnalysis'.
+While running phases (Screen 3) you may set case.status = 'InAnalysis'.
+Once all phases complete and the user approves:
+case.status = 'Approved' (or 'ConceptApproved').
+If the user rejects:
+case.status = 'Rejected'.
+This gives the reviewers a clear life-cycle that matches the 3 screens.

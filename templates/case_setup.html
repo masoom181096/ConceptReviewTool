@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Case Setup - {{ case.name }} | EBRD Concept Review Tool{% endblock %}
+
+{% block content %}
+<div class="setup-page">
+    <div class="setup-header">
+        <h2>Step 2 of 3 – Case Setup & Document Upload</h2>
+        <p class="subtitle">Review parsed information and upload required documents</p>
+    </div>
+    
+    <div class="step-indicator">
+        <div class="step completed">
+            <div class="step-circle">1</div>
+            <span class="step-label">Intake</span>
+        </div>
+        <div class="step-connector completed"></div>
+        <div class="step current">
+            <div class="step-circle">2</div>
+            <span class="step-label">Setup</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step">
+            <div class="step-circle">3</div>
+            <span class="step-label">Review</span>
+        </div>
+    </div>
+    
+    {% if docs.need_assessment_text %}
+    <div class="card">
+        <h3>Parsed Email Summary</h3>
+        <div class="email-preview">
+            <pre>{{ docs.need_assessment_text[:800] }}{% if docs.need_assessment_text|length > 800 %}...{% endif %}</pre>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="card">
+        <h3>Case Information</h3>
+        <p class="help-text">
+            Review and edit the parsed project details, then upload the required documents to proceed with the concept review.
+        </p>
+        
+        <form action="/cases/{{ case.id }}/setup" method="post" enctype="multipart/form-data" class="form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="name">Project Name *</label>
+                    <input type="text" id="name" name="name" value="{{ case.name }}" required />
+                </div>
+                <div class="form-group">
+                    <label for="country">Country *</label>
+                    <input type="text" id="country" name="country" value="{{ case.country }}" required />
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="sector">Sector *</label>
+                <select id="sector" name="sector" required>
+                    <option value="Urban Transport" {% if case.sector == 'Urban Transport' %}selected{% endif %}>Urban Transport</option>
+                    <option value="Energy" {% if case.sector == 'Energy' %}selected{% endif %}>Energy</option>
+                    <option value="Water & Wastewater" {% if case.sector == 'Water & Wastewater' %}selected{% endif %}>Water & Wastewater</option>
+                    <option value="Solid Waste" {% if case.sector == 'Solid Waste' %}selected{% endif %}>Solid Waste</option>
+                    <option value="District Heating" {% if case.sector == 'District Heating' %}selected{% endif %}>District Heating</option>
+                </select>
+            </div>
+            
+            <hr class="section-divider" />
+            
+            <h4>Required Documents</h4>
+            <p class="help-text">
+                Upload the Sector Profile document and Sustainability document. These are required to proceed with the concept review.
+            </p>
+            
+            <div class="doc-section">
+                <div class="doc-header">
+                    <label for="sector_profile_file">Sector Profile Document *</label>
+                    {% if docs.sector_profile_filename %}
+                    <span class="file-badge">Uploaded: {{ docs.sector_profile_filename }}</span>
+                    {% endif %}
+                </div>
+                <p class="help-text">Government sector documentation, fleet data, master plan details...</p>
+                <input type="file" id="sector_profile_file" name="sector_profile_file" accept=".docx,.txt,.pdf" class="file-input" {% if not docs.sector_profile_filename %}required{% endif %} />
+            </div>
+            
+            <div class="doc-section">
+                <div class="doc-header">
+                    <label for="sustainability_file">Sustainability / ESG Document *</label>
+                    {% if docs.sustainability_filename %}
+                    <span class="file-badge">Uploaded: {{ docs.sustainability_filename }}</span>
+                    {% endif %}
+                </div>
+                <p class="help-text">Environmental impact assessment, accessibility plans, policy alignment...</p>
+                <input type="file" id="sustainability_file" name="sustainability_file" accept=".docx,.txt,.pdf" class="file-input" {% if not docs.sustainability_filename %}required{% endif %} />
+            </div>
+            
+            <div class="form-actions">
+                <a href="/cases" class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary btn-large">
+                    Continue to Concept Review
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.setup-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.setup-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.setup-header h2 {
+    color: var(--primary-color);
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    background-color: var(--light-bg);
+    color: var(--text-muted);
+    border: 2px solid var(--border-color);
+}
+
+.step.completed .step-circle {
+    background-color: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+.step.current .step-circle {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.step-connector {
+    width: 60px;
+    height: 3px;
+    background-color: var(--border-color);
+    margin: 0 1rem;
+}
+
+.step-connector.completed {
+    background-color: var(--success-color);
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 1.5rem 0;
+}
+
+.email-preview {
+    background-color: var(--light-bg);
+    padding: 1rem;
+    border-radius: 4px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.email-preview pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.875rem;
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+}
+</style>
+{% endblock %}
